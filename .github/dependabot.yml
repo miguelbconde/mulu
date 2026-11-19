@@ -1,0 +1,8 @@
+# Keeps the versions used by the automated build pipeline up to date.
+# Rust (cargo) and JavaScript (npm) entries will be added with the first code.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
