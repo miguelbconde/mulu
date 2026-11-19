@@ -29,5 +29,10 @@ No version has been released yet. Once releases begin, security fixes will go in
 - Files are parsed in a separate process with time and memory limits.
 - Rust, a memory-safe language, is used wherever possible.
 - Dependencies are few, pinned, and monitored for known vulnerabilities.
-- Installers are built only by GitHub Actions from this public repository.
+- Installers are built only by GitHub Actions from this public repository, with a build provenance attestation and published checksums.
+- Automated workflows run with minimal permissions, and third-party actions are pinned to an exact commit.
+- An automated test fails if Mulu attempts any network connection.
+- Mulu never runs macros, scripts or other code embedded in documents.
 - Mulu never asks for administrator privileges.
+
+See decision D12 in [DECISIONS.md](DECISIONS.md) for the full list.
