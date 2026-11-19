@@ -21,9 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Two macOS runners: Apple silicon (arm64) and Intel. GitHub's arm64 pool is
-        # sometimes out of capacity; the Intel runner keeps macOS covered meanwhile.
-        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-latest]
+        # macOS runs on GitHub's Intel runner: on 19 Nov 2026 the Apple silicon (arm64)
+        # pool had no capacity for every run, so those jobs were cancelled and marked the
+        # whole run as failed. The release still builds a universal app for both kinds of
+        # Mac. Add macos-latest back when its queue is reliable.
+        os: [windows-latest, macos-15-intel, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
