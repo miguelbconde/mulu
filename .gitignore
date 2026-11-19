@@ -19,3 +19,6 @@ Thumbs.db
 .env
 *.pfx
 *.p12
+
+# Research corpora are downloaded, never committed
+/research/*/corpus/

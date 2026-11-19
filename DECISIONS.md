@@ -82,6 +82,12 @@ Threats considered: a compromised third-party dependency, a hijacked maintainer 
 - Test versions are installed and tried inside Windows Sandbox, against a copy of the library mapped read-only, with networking disabled. A ready-made Sandbox configuration file ships with each test version.
 - OpenSSF Scorecard is adopted as an independent measure once the code exists.
 
+### D13. Chinese text is indexed as character pairs (developer; result of D9)
+
+Han characters are indexed as overlapping pairs (bigrams), with a separate single-character field without positions for one-character searches. A search for several characters is a phrase of pairs, so it finds exactly the documents that contain that string, as Ctrl+F would. A position gap at punctuation keeps phrases from matching across sentence breaks.
+
+Why: in a measured comparison on modern and classical Chinese, in Simplified and Traditional characters, bigrams found 100% of the relevant documents with no false matches. Dictionary segmentation (jieba) found 76% for dictionary words, 58% for text fragments and 24% for single characters. One-character terms were just as exact but up to 13 times slower on the slowest queries. Bigrams need no dictionary, so no dictionary file is shipped and no dictionary update can force users to rebuild their index. Cost: the index is about twice the size of a jieba index (about 1.1 times the size of the text), and indexing is slower. Method, code and results: [research/cjk-tokenization](research/cjk-tokenization/README.md).
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

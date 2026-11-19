@@ -9,3 +9,4 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 - Project documentation: README (English and Brazilian Portuguese), roadmap, decision log, contributing guide and security policy.
 - License: GNU General Public License, version 3 or later.
 - Security practices and isolated testing recorded as decision D12.
+- Measured comparison of Chinese tokenization strategies, with code and results, in `research/cjk-tokenization`; decision D13.

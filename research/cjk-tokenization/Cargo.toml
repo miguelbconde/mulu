@@ -1,0 +1,11 @@
+[package]
+name = "cjk-tokenization"
+publish = false
+license = "GPL-3.0-or-later"
+description = "Mulu decision D9: comparing Chinese tokenization strategies with Tantivy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+jieba-rs = "0.11.0"
+tantivy = "0.27"
