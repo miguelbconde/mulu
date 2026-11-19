@@ -1,14 +1,4 @@
 <Configuration>
-  <!-- Opens Windows Sandbox, a disposable copy of Windows that is erased when closed,
-       and shows the Mulu test version's download page inside it. Nothing done inside
-       the sandbox touches your real computer. Requires Windows 10/11 Pro or Enterprise. -->
-  <vGPU>Default</vGPU>
-  <Networking>Default</Networking>
-  <ClipboardRedirection>Enable</ClipboardRedirection>
-  <PrinterRedirection>Disable</PrinterRedirection>
-  <AudioInput>Disable</AudioInput>
-  <VideoInput>Disable</VideoInput>
-  <ProtectedClient>Enable</ProtectedClient>
   <LogonCommand>
     <Command>explorer.exe https://github.com/miguelbconde/mulu/releases/tag/VERSION</Command>
   </LogonCommand>
