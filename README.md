@@ -11,7 +11,7 @@
 - **Search inside your whole library.** Type a word, a name or an exact phrase and see every book that contains it, with the passages where it appears and the page or chapter.
 - **One result per book.** Each file appears once, with the number of times your term appears in it. Open the list to see every passage.
 - **Reading notes in one click.** Select passages and export them to a document (Word, LibreOffice, RTF, Markdown or plain text), with author, title, year and page.
-- **Read scanned books.** Pages that are only images can be recognized (OCR) in Portuguese, Spanish, English, French, German, Italian, Modern and Ancient Greek, Latin, and Simplified and Traditional Chinese.
+- **Read scanned books.** Pages that are only images can be recognized (OCR). Planned languages: Portuguese, Spanish, English, French, German, Italian, Modern and Ancient Greek, Latin, and Simplified and Traditional Chinese. Each language is confirmed only after its recognition quality has been measured and published.
 - **Keep your library in order.** Filters by author, year, format and folder; tags; duplicate detection; optional renaming and moving, always with a preview and an undo option.
 
 Supported formats: PDF, EPUB, MOBI and AZW3 (without DRM), DJVU, DOCX, DOC, ODT, RTF, TXT, Markdown, HTML and FB2. Files with DRM are listed as "protected" and never unlocked.

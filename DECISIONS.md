@@ -88,6 +88,12 @@ Han characters are indexed as overlapping pairs (bigrams), with a separate singl
 
 Why: in a measured comparison on modern and classical Chinese, in Simplified and Traditional characters, bigrams found 100% of the relevant documents with no false matches. Dictionary segmentation (jieba) found 76% for dictionary words, 58% for text fragments and 24% for single characters. One-character terms were just as exact but up to 13 times slower on the slowest queries. Bigrams need no dictionary, so no dictionary file is shipped and no dictionary update can force users to rebuild their index. Cost: the index is about twice the size of a jieba index (about 1.1 times the size of the text), and indexing is slower. Method, code and results: [research/cjk-tokenization](research/cjk-tokenization/README.md).
 
+### D14. No Chinese interface for now (maintainer)
+
+The interface languages are English, Brazilian Portuguese and Spanish. Simplified Chinese is dropped from the interface, because a weak translation would be the first thing a Chinese-speaking user sees, and a native reviewer is not guaranteed. The interface stays ready for new languages.
+
+Search inside Chinese texts stays (D13): it costs almost nothing, does not affect other languages, and adding it later would force every user to rebuild the index. Chinese OCR stays planned, but it is confirmed only if the measured comparison in 0.5 shows acceptable quality; otherwise it is labeled experimental or dropped. More generally, no language is announced as supported before its quality has been measured and published.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
