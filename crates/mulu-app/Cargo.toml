@@ -1,0 +1,18 @@
+[package]
+name = "mulu"
+description = "Mulu (目录), an open-source digital librarian"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "=2.7.6", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.7", features = [] }
+
+[lints]
+workspace = true

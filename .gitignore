@@ -3,7 +3,7 @@
 **/target/
 
 # Tauri
-/src-tauri/gen/
+/crates/mulu-app/gen/
 
 # JavaScript
 node_modules/

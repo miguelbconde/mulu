@@ -4,6 +4,18 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-11-19
+
+Rehearsal version for testers. It only opens the window, to test the delivery path before search exists.
+
+### Added
+
+- The desktop window (Tauri 2), in the "Page" visual identity, in English, Brazilian Portuguese and Spanish (D17).
+- Installers built by GitHub Actions: Windows (per-user, no administrator password) and macOS (universal, experimental), with SHA-256 checksums, a build provenance attestation and a Windows Sandbox file for testers (D18).
+- Test script: `docs/testing/v0.0.1.md`.
+
+## Earlier work (before 0.0.1)
+
 ### Added
 
 - Project documentation: README (English and Brazilian Portuguese), roadmap, decision log, contributing guide and security policy.

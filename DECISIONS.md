@@ -108,6 +108,23 @@ Each library shows, next to its name, a refresh button and the date of its last 
 
 Why: automatic change detection is not fully reliable in cloud-synced folders, on external disks, or in very large libraries, so users need a simple, dependable way to say "check again". Continuous watching of folders while Mulu is open was considered and postponed: it costs more resources and is less reliable in cloud folders; it may be measured later.
 
+### D17. The interface uses plain web standards, without npm (developer)
+
+The window's content is written in plain HTML, CSS and JavaScript, with no framework, bundler or package from npm. Alternatives considered: a framework such as Svelte or SolidJS built with Vite, which is faster to write but pulls hundreds of npm packages into the build.
+
+Why: npm is going through a wave of self-propagating supply-chain attacks (Shai-Hulud and its variants; in August 2026, ChainDrop compromised more than 1,300 packages). With no npm packages, none of that code can reach Mulu's build or its users. The cost is more hand-written code, kept small and readable.
+
+### D18. How installers are built (developer)
+
+- **Windows:** an NSIS installer that installs for the current user only, so no administrator password is asked (D2). On the rare Windows 10 computer without Microsoft's web view (WebView2, built into Windows 11), the installer downloads it from Microsoft once; Mulu itself never connects to the network.
+- **macOS:** a universal app (Apple silicon and Intel) in a disk image, built on GitHub's Intel macOS runner. Not signed or notarized until the Apple Developer Program decision; labeled experimental.
+- **Fonts:** Newsreader and Inter (SIL Open Font License) are bundled, cut down to Latin, Greek and Cyrillic; the 目录 mark uses only those two characters cut from Noto Serif SC. Other scripts use the system's fonts.
+- **Window security:** the page may load only Mulu's own files (content security policy, checked by a test); the window may use only Tauri's basic core features.
+- **Provenance:** every release lists SHA-256 checksums and carries a build provenance attestation from GitHub Actions (D12).
+- **Rehearsal release:** version 0.0.1 only opens the window, to test the delivery path (build, download, install, first launch) before search exists.
+
+Known cost: the window toolkit (Tauri 2) brings about 400 Rust packages across all platforms into the lock file; each platform compiles only its own. Automated vulnerability checks on them are planned before 0.1.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
