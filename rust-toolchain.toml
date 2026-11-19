@@ -1,0 +1,5 @@
+# Every build, on every machine, uses the same compiler version.
+[toolchain]
+channel = "1.97.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
