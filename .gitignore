@@ -1,0 +1,21 @@
+# Rust
+/target/
+**/target/
+
+# Tauri
+/src-tauri/gen/
+
+# JavaScript
+node_modules/
+dist/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Never commit secrets
+.env
+*.pfx
+*.p12
