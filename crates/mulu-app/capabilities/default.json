@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window. It may only use Tauri's basic core features; every new permission must be added here explicitly and justified in review.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
