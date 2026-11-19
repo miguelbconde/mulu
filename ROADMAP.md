@@ -21,6 +21,7 @@ This roadmap was adopted on 2026-11-19 (see [DECISIONS.md](DECISIONS.md), D10). 
 ## Before 0.1
 
 - ~~Choose the word segmentation for Chinese text (D9).~~ Done: character pairs (D13).
+- ~~Index every script by the Unicode rules (D15).~~ Done: `crates/mulu-text`.
 - Set up the automatic installer builds for Windows and macOS.
 
 ## Platforms

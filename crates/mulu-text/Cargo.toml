@@ -1,0 +1,16 @@
+[package]
+name = "mulu-text"
+description = "Turns text in any script into search terms for Mulu's index (decisions D13 and D15)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+unicode-normalization.workspace = true
+unicode-segmentation.workspace = true
+
+[lints]
+workspace = true

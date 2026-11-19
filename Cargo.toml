@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["research"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/miguelbconde/mulu"
+publish = false
+
+[workspace.dependencies]
+unicode-normalization = "=0.1.26"
+unicode-segmentation = "=1.13.3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }

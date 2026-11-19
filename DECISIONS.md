@@ -94,6 +94,14 @@ The interface languages are English, Brazilian Portuguese and Spanish. Simplifie
 
 Search inside Chinese texts stays (D13): it costs almost nothing, does not affect other languages, and adding it later would force every user to rebuild the index. Chinese OCR stays planned, but it is confirmed only if the measured comparison in 0.5 shows acceptable quality; otherwise it is labeled experimental or dropped. More generally, no language is announced as supported before its quality has been measured and published.
 
+### D15. Every script is indexed by the Unicode rules from 0.1 (maintainer and developer)
+
+Text in every writing system is indexed from the first version, so that no script needs a rebuilt index later. No script is announced as supported before its search quality has been measured and published (version 0.8), as with Chinese in D14.
+
+How (developer): words are found with the Unicode word boundary rules (UAX #29); scripts written without spaces (Chinese, Japanese, Korean, Thai, Lao, Khmer, Myanmar) use the character pairs of D13; apostrophes split words ("homme" in "l'homme"); case, compatibility forms and optional marks are folded in Latin, Greek, Cyrillic, Hebrew and Arabic, but Indic vowel signs are kept; common Arabic spelling variants are unified.
+
+Why: a quick test showed that naive splitting cuts Hindi words at the virama (हिन्दी became two fragments), keeps Arabic vowel marks that searchers do not type, and leaves Japanese sentences as one block. Libraries compared: the small, widely used `unicode-segmentation` and `unicode-normalization` crates, and ICU4X, the Unicode Consortium's library. ICU4X segments unspaced scripts with dictionaries or statistical models that add several megabytes and could change between versions, forcing a rebuilt index; character pairs need no data. Known limit: Arabic prefixes such as al- are not yet removed, so a bare word is not found inside its prefixed form; light stemming will be measured in 0.8.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
