@@ -11,7 +11,7 @@
 - **Pesquisar dentro da biblioteca inteira.** Digite uma palavra, um nome ou uma frase exata e veja todos os livros que a contêm, com os trechos em que aparece e a página ou o capítulo.
 - **Um resultado por livro.** Cada arquivo aparece uma vez, com o número de vezes que o termo aparece nele. Abra a lista para ver todos os trechos.
 - **Fichamento em um clique.** Selecione trechos e exporte-os para um documento (Word, LibreOffice, RTF, Markdown ou texto simples), com autor, título, ano e página.
-- **Ler livros digitalizados.** Páginas que são só imagem podem ser reconhecidas (OCR) em português, espanhol, inglês, francês, alemão, italiano, grego moderno e antigo, latim e chinês simplificado e tradicional.
+- **Ler livros digitalizados.** Páginas que são só imagem podem ser reconhecidas (OCR). Línguas previstas: português, espanhol, inglês, francês, alemão, italiano, grego moderno e antigo, latim e chinês simplificado e tradicional. Cada língua só é confirmada depois de medida e publicada a qualidade do reconhecimento.
 - **Manter a biblioteca em ordem.** Filtros por autor, ano, formato e pasta; etiquetas; detecção de duplicatas; renomear e mover arquivos, se você quiser, sempre com prévia e opção de desfazer.
 
 Formatos: PDF, EPUB, MOBI e AZW3 (sem DRM), DJVU, DOCX, DOC, ODT, RTF, TXT, Markdown, HTML e FB2. Arquivos com DRM aparecem como "protegidos" e nunca são desbloqueados.

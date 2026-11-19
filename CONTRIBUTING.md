@@ -5,7 +5,7 @@ Thank you for your interest. Mulu is at an early stage: the design is settled (s
 ## Ways to help now
 
 - **Test on macOS.** We need volunteers with a Mac to follow the test script of each version. Open an issue titled "macOS tester" to join.
-- **Review a translation.** The interface will be in English, Brazilian Portuguese, Spanish and Simplified Chinese. A translation is considered ready only after a native speaker has reviewed it.
+- **Review a translation.** The interface will be in English, Brazilian Portuguese and Spanish, and is built so that more languages can be added. A translation is considered ready only after a native speaker has reviewed it.
 - **Offer test files.** Public-domain books in less common formats, scripts or languages help us test. Please do not send copyrighted material.
 - **Report problems and ideas** by opening an issue. For security problems, follow [SECURITY.md](SECURITY.md) instead, and do not open a public issue.
 
