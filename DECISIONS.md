@@ -67,6 +67,21 @@ Why this order: the most important use (gathering everything the library holds a
 
 Why: no cost now, and nothing is locked in, since signing is applied to finished installers. Known limits: SignPath approval is not guaranteed; with it, the publisher shown is SignPath Foundation; a new program can still trigger warnings until it builds reputation; only the Store avoids them entirely; publishing a Store listing to the public cannot be reverted to a private audience.
 
+### D12. Security practices and isolated testing (maintainer and developer)
+
+*Decided on 2026-11-17 and first recorded on an unmerged branch; carried over here.*
+
+Threats considered: a compromised third-party dependency, a hijacked maintainer account, a tampered installer, a malicious document, and mistakes in code that no second person reviews.
+
+- Few dependencies, with pinned versions and a lock file; an automated audit for known vulnerabilities runs on every change.
+- Installers are built only by GitHub Actions from the public code, never on a personal computer, and carry a build provenance attestation and published checksums.
+- Workflows run with minimal permissions; third-party actions are pinned to an exact commit.
+- An automated test fails if Mulu attempts any network connection.
+- Two-step verification on the maintainer's GitHub account.
+- The `main` branch is protected; every change goes through a pull request.
+- Test versions are installed and tried inside Windows Sandbox, against a copy of the library mapped read-only, with networking disabled. A ready-made Sandbox configuration file ships with each test version.
+- OpenSSF Scorecard is adopted as an independent measure once the code exists.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
