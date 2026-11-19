@@ -121,6 +121,7 @@ Why: npm is going through a wave of self-propagating supply-chain attacks (Shai-
 - **Fonts:** Newsreader and Inter (SIL Open Font License) are bundled, cut down to Latin, Greek and Cyrillic; the 目录 mark uses only those two characters cut from Noto Serif SC. Other scripts use the system's fonts.
 - **Window security:** the page may load only Mulu's own files (content security policy, checked by a test); the window may use only Tauri's basic core features.
 - **Provenance:** every release lists SHA-256 checksums and carries a build provenance attestation from GitHub Actions (D12).
+- **When a version is published:** when a reviewed pull request that changes the version number is merged into `main`. The release workflow then builds, attests and publishes the version and creates its tag. No one pushes tags or builds by hand.
 - **Rehearsal release:** version 0.0.1 only opens the window, to test the delivery path (build, download, install, first launch) before search exists.
 
 Known cost: the window toolkit (Tauri 2) brings about 400 Rust packages across all platforms into the lock file; each platform compiles only its own. Automated vulnerability checks on them are planned before 0.1.

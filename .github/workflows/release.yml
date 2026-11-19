@@ -1,5 +1,8 @@
-# Builds the installers when a version tag (v0.0.1, v0.1.0, ...) is pushed, and
+# Publishes a version when the version number in crates/mulu-app/tauri.conf.json
+# changes on the main branch (that is, when a reviewed pull request that bumps it is
+# merged) and no release with that number exists yet. Builds the installers and
 # publishes them as a pre-release with checksums and a build provenance attestation.
+# The release creates the matching tag (v0.0.1, v0.1.0, ...).
 #
 # Security (decision D12):
 # - installers are built only here, from the public code, never on a personal computer;
@@ -9,14 +12,45 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths:
+      - "crates/mulu-app/tauri.conf.json"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  check:
+    name: Is there a new version?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(jq -r .version crates/mulu-app/tauri.conf.json)"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            echo "Release ${tag} already exists; nothing to do."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publishing ${tag}."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build (${{ matrix.name }})
+    needs: check
+    if: needs.check.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +95,7 @@ jobs:
 
   publish:
     name: Publish pre-release
-    needs: build
+    needs: [check, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -77,8 +111,10 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Add the Windows Sandbox file for testers
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
         run: |
-          sed "s/VERSION/${GITHUB_REF_NAME}/" docs/testing/mulu-sandbox.wsb > "dist/Mulu-${GITHUB_REF_NAME}-test-sandbox.wsb"
+          sed "s/VERSION/${TAG}/" docs/testing/mulu-sandbox.wsb > "dist/Mulu-${TAG}-test-sandbox.wsb"
       - name: Compute checksums
         working-directory: dist
         run: |
@@ -88,12 +124,14 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: "dist/*"
-      - name: Create the pre-release
+      - name: Create the pre-release and its tag
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/* \
+          gh release create "${TAG}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
             --prerelease \
-            --title "Mulu ${GITHUB_REF_NAME} (test version)" \
-            --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+            --title "Mulu ${TAG} (test version)" \
+            --notes-file "docs/releases/${TAG}.md"
