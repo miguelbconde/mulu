@@ -102,6 +102,12 @@ How (developer): words are found with the Unicode word boundary rules (UAX #29);
 
 Why: a quick test showed that naive splitting cuts Hindi words at the virama (हिन्दी became two fragments), keeps Arabic vowel marks that searchers do not type, and leaves Japanese sentences as one block. Libraries compared: the small, widely used `unicode-segmentation` and `unicode-normalization` crates, and ICU4X, the Unicode Consortium's library. ICU4X segments unspaced scripts with dictionaries or statistical models that add several megabytes and could change between versions, forcing a rebuilt index; character pairs need no data. Known limit: Arabic prefixes such as al- are not yet removed, so a bare word is not found inside its prefixed form; light stemming will be measured in 0.8.
 
+### D16. A refresh button for each library, and a check on startup (maintainer)
+
+Each library shows, next to its name, a refresh button and the date of its last update. Mulu also checks for changes each time it opens. A refresh only reprocesses what changed (new, modified, renamed or deleted files), runs in the background while search keeps working, and ends with a short summary ("3 new, 1 changed, 2 removed from the index"). Original files are never touched: "removed" applies only to the index. The button works with the keyboard and is announced by screen readers.
+
+Why: automatic change detection is not fully reliable in cloud-synced folders, on external disks, or in very large libraries, so users need a simple, dependable way to say "check again". Continuous watching of folders while Mulu is open was considered and postponed: it costs more resources and is less reliable in cloud folders; it may be measured later.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
