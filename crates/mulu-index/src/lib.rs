@@ -299,6 +299,7 @@ impl LibraryIndex {
         let (field, terms): (Field, Vec<(u32, String)>) = match part {
             Search::SingleCharacter(c) => (self.fields.chars, vec![(0, c.clone())]),
             Search::Phrase(terms) => (self.fields.text, terms.clone()),
+            Search::Prefix(prefix) => return self.count_prefix(segment, prefix),
             Search::Nothing => return Ok(Vec::new()),
         };
         let inverted = segment.inverted_index(field)?;
@@ -359,6 +360,32 @@ impl LibraryIndex {
             doc = postings[0].1.advance();
         }
         Ok(out)
+    }
+}
+
+impl LibraryIndex {
+    /// Occurrences of every word that starts with `prefix`, per page: the term
+    /// dictionary is sorted, so the matching words are read in one stretch.
+    fn count_prefix(&self, segment: &SegmentReader, prefix: &str) -> Result<Vec<(DocId, u32)>> {
+        let inverted = segment.inverted_index(self.fields.text)?;
+        let mut counts: BTreeMap<DocId, u32> = BTreeMap::new();
+        let mut stream = inverted
+            .terms()
+            .range()
+            .ge(prefix.as_bytes())
+            .into_stream()?;
+        while stream.advance() {
+            if !stream.key().starts_with(prefix.as_bytes()) {
+                break;
+            }
+            let mut postings = inverted
+                .read_postings_from_terminfo(stream.value(), IndexRecordOption::WithFreqs)?;
+            while postings.doc() != TERMINATED {
+                *counts.entry(postings.doc()).or_default() += postings.term_freq();
+                postings.advance();
+            }
+        }
+        Ok(counts.into_iter().collect())
     }
 }
 

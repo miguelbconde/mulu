@@ -13,6 +13,11 @@ pub fn occurrences(text: &str, search: &Search) -> Vec<(usize, usize)> {
             .filter(|t| &t.text == c)
             .map(|t| (t.start, t.end))
             .collect(),
+        Search::Prefix(prefix) => index_terms(text)
+            .into_iter()
+            .filter(|t| t.text.starts_with(prefix.as_str()))
+            .map(|t| (t.start, t.end))
+            .collect(),
         Search::Phrase(phrase) => {
             let terms = index_terms(text);
             let by_position: HashMap<u32, usize> = terms
