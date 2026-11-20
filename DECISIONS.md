@@ -79,7 +79,7 @@ Threats considered: a compromised third-party dependency, a hijacked maintainer 
 - An automated test fails if Mulu attempts any network connection.
 - Two-step verification on the maintainer's GitHub account.
 - The `main` branch is protected; every change goes through a pull request.
-- Test versions are installed and tried inside Windows Sandbox, against a copy of the library mapped read-only, with networking disabled. A ready-made Sandbox configuration file ships with each test version.
+- Test versions are installed and tried inside Windows Sandbox, against a copy of the library mapped read-only, with networking disabled. A ready-made Sandbox configuration file ships with each test version. *(Changed by D19: a separate Windows account, because Windows Sandbox fails on the maintainer's computer.)*
 - OpenSSF Scorecard is adopted as an independent measure once the code exists.
 
 ### D13. Chinese text is indexed as character pairs (developer; result of D9)
@@ -125,6 +125,12 @@ Why: npm is going through a wave of self-propagating supply-chain attacks (Shai-
 - **Rehearsal release:** version 0.0.1 only opens the window, to test the delivery path (build, download, install, first launch) before search exists.
 
 Known cost: the window toolkit (Tauri 2) brings about 400 Rust packages across all platforms into the lock file; each platform compiles only its own. Automated vulnerability checks on them are planned before 0.1.
+
+### D19. Test versions are tried in a separate Windows account (maintainer)
+
+Windows Sandbox, chosen in D12, fails to start on the maintainer's Windows 11 Pro ("Value does not fall within the expected range") even with virtualization enabled and after updating Windows and the Sandbox app and re-enabling the feature. A virtual machine was considered and declined: Microsoft no longer offers ready-made Windows virtual machines, an evaluation copy of Windows expires every 90 days, and it needs about 60 GB of disk.
+
+Test versions that read files are therefore tried in a separate, standard Windows account that cannot see the tester's personal files, against a copy of the library placed in Public Documents. Windows Sandbox remains an option for testers on whose computers it works. This is a separation of accounts, not a disposable machine; Mulu's own read-only design, provenance attestations and automated tests remain the main protections. Instructions: [docs/testing/test-account.md](docs/testing/test-account.md).
 
 ## Open
 
