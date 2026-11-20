@@ -206,6 +206,16 @@ Alternatives considered for memory: the systems' own limits (Windows job objects
 
 Tests: a file over the memory allowance, a reader that runs out of memory while working, a file over the time limit, a reading process killed from outside, each followed by a normal file.
 
+### D26. The library and the window of version 0.1 (developer)
+
+- **Catalog:** a SQLite file per library folder (D1), in Mulu's own data folder, never inside the library: one row per book file found, with what happened when it was read. SQLite is compiled into Mulu (`rusqlite`, "bundled"), so there is nothing to install. The index is saved first and the catalog updated after, so a file interrupted by closing Mulu is simply read again next time: indexing resumes where it stopped.
+- **Finding the books:** hidden files and folders, system folders and links are skipped (links could lead outside the library or in circles).
+- **Files in the cloud are never read**, so that Mulu never makes a cloud service download a whole library: on Windows, files marked "online only" (OneDrive, iCloud for Windows, Dropbox, Google Drive); on macOS, iCloud's placeholders and "dataless" files. They are listed as "in the cloud" and found by name. Checked from the file's attributes, without opening it.
+- **Search by name** (D21): every search also looks at the file names, with the same word rules, and lists the files whose name matches after those whose text does, including files that could not be read.
+- **Window:** a native "choose a folder" window through the official Tauri dialog plugin (alternative: `rfd` directly, which the plugin wraps and which must run on the main thread on macOS); files are opened with the system's own command (`explorer`, `open`), with the path as a separate argument, never through a shell; the window follows the indexing by asking for its progress once a second while it runs. Text from the books is always inserted as text, never as HTML.
+- **Results** follow the project instructions, section 6: one line per file with its occurrences; one occurrence shows its passage, several fold behind an arrow, ten at a time with "show more"; the term in highlighter yellow and marked for screen readers; page (printed number when the PDF has one) or chapter.
+- **Help:** a "?" button with a short manual in the three interface languages. Searching the help with Mulu's own search comes later.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
