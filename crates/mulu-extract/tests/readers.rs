@@ -286,6 +286,9 @@ fn files_on_disk_with_names_in_several_scripts() {
 /// Random bytes, in every format: the readers must never crash or hang.
 #[test]
 fn random_input_never_crashes() {
+    if let Some(path) = std::env::var_os("MULU_PDFIUM") {
+        mulu_extract::set_pdfium_library(std::path::Path::new(&path));
+    }
     let mut state: u64 = 0x2545_F491_4F6C_DD1D;
     let mut next = move || {
         state ^= state << 13;

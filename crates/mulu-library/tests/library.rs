@@ -6,10 +6,13 @@ use mulu_reader::{Reader, Settings};
 use std::path::{Path, PathBuf};
 
 fn reader() -> Reader {
-    Reader::new(
-        env!("CARGO_BIN_EXE_mulu-library-worker"),
-        Settings::default(),
-    )
+    let pdfium = std::env::var_os("MULU_PDFIUM")
+        .expect("set MULU_PDFIUM to the PDFium library (see scripts/fetch-pdfium.sh)");
+    let settings = Settings {
+        pdfium: Some(PathBuf::from(pdfium)),
+        ..Settings::default()
+    };
+    Reader::new(env!("CARGO_BIN_EXE_mulu-library-worker"), settings)
 }
 
 fn fixture(name: &str) -> PathBuf {

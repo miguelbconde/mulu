@@ -75,6 +75,11 @@ jobs:
       - name: Add both Mac architectures
         if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      # The PDF engine's library (D28), checked against its pinned checksum and
+      # shipped inside the installer with its licenses.
+      - name: Fetch the PDF engine
+        shell: bash
+        run: scripts/fetch-pdfium.sh ${{ runner.os == 'Windows' && 'win-x64' || 'mac-univ' }}
       - name: Install the Tauri command-line tool (pinned version)
         run: cargo install tauri-cli --version 2.12.6 --locked
       - name: Build the installer

@@ -1,6 +1,6 @@
 # Which engine should Mulu use to read PDFs? (decision D24)
 
-*Experiment run on 2026-11-20. Result: Mulu reads PDFs with [pdf_oxide](https://github.com/yfedoseev/pdf_oxide) 0.3.78, inside its isolated reading process, with PDFium kept as the measured fallback. See [DECISIONS.md](../../DECISIONS.md), D24.*
+*Experiment run on 2026-11-20. First result: pdf_oxide (D24). **Revised the same day after the first test on real books: Mulu reads PDFs with PDFium (D28).** See the revision at the end and [DECISIONS.md](../../DECISIONS.md).*
 
 ## The question
 
@@ -86,3 +86,29 @@ By script (words found on the right page):
 - PDFium was measured through Python, not through pdfium-render; same engine, but times and memory include Python.
 - One run on a 2-core cloud machine; times are indicative.
 - pdf_oxide's own benchmarks were not used; every number here was measured by this script.
+
+## Revision: real books (2026-11-20, decision D28)
+
+The first test of Mulu on a real library (3,292 files, 13.7 GB, on a Windows laptop) took 26 minutes, almost all of it in the PDF reader, and some books took 40 to 120 seconds each. Two of them, books produced by publishers with Adobe InDesign and Acrobat ("tagged" PDFs, which carry a structure tree for accessibility), were measured here. They are not redistributed.
+
+| | pdf_oxide 0.3.78 | PDFium (pdfium-render, chromium/8125) |
+|---|---|---|
+| Book 1, 456 pages, 2.4 MB | 16.1 s, 887 MB of memory | 0.45 s, 22 MB |
+| Book 2, 341 pages, 2.6 MB | 86.3 s, 333 MB | 0.46 s, 44 MB |
+| Text extracted (characters) | 954,572 / 888,034 | 970,099 / 898,404 |
+
+Sampling the running process showed pdf_oxide spending its time parsing the document's structure tree, which it consults for every page; reading the same pages as raw text spans took 0.7 s and 8 s. Synthetic test PDFs carry no structure tree, which is why the first comparison did not show it.
+
+PDFium is now also measured the way Mulu uses it, from Rust through pdfium-render (`pdfium-rs` in [`results/summary.md`](results/summary.md)), with the same clean-up as Mulu:
+
+| | PDFium via pdfium-render | pdf_oxide |
+|---|---|---|
+| Words found on the right page, 61 files | 97.5% | 97.7% |
+| Three-word phrases found | 94.3% | 95.6% |
+| Crashes, time limits on 1,103 real PDFs | 0, 0 | 0, 0 |
+| Slowest real PDF | 0.35 s | 4.91 s |
+| All 1,103 real PDFs, total | 12.1 s | 20.6 s |
+| Largest peak memory | 65 MB | 216 MB |
+| 645-page book | 0.83 s, 17 MB | 1.07 s, 38 MB |
+
+Text quality is equal within a few tenths of a point, PDFium reads Hebrew better and Hindi and Thai worse; on speed and memory, especially on real books, PDFium is far ahead. Lesson kept for the next comparisons (OCR, D21): include real documents from the start, not only generated ones.

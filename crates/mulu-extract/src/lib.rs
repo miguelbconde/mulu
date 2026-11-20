@@ -19,6 +19,8 @@ mod html;
 mod pdf;
 mod plain;
 
+pub use pdf::set_pdfium_library;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::File;
@@ -133,9 +135,9 @@ pub struct Limits {
     pub max_text_file: u64,
     /// Largest EPUB file opened, in bytes.
     pub max_archive_file: u64,
-    /// Largest PDF file read, in bytes. The PDF reader holds the whole file in memory
-    /// (twice, briefly), so very large PDFs, usually scans without text, are skipped
-    /// until version 0.5 (OCR) reads them page by page.
+    /// Largest PDF file read, in bytes. The PDF reader holds the whole file in memory,
+    /// so very large PDFs, usually scans without text, are skipped until version 0.5
+    /// (OCR) reads them page by page.
     pub max_pdf_file: u64,
     /// Most bytes unpacked from one archive, all entries together (guards against
     /// "zip bombs", small files that expand to fill the memory).
@@ -204,7 +206,7 @@ pub fn extract_bytes(format: Format, bytes: &[u8], limits: &Limits) -> Result<Do
             if bytes.len() as u64 > limits.max_pdf_file {
                 return Err(Problem::TooLarge);
             }
-            pdf::read(bytes.to_vec())?
+            pdf::read(bytes)?
         }
         Format::Text | Format::Markdown => {
             if bytes.len() as u64 > limits.max_text_file {

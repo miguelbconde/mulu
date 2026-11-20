@@ -4,6 +4,15 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-20
+
+Test script: `docs/testing/v0.1.2.md`.
+
+### Changed
+
+- PDFs are read with PDFium, Google's PDF engine, instead of pdf_oxide: in our measurements on real books, 20 to 190 times faster and with far less memory, for the same text quality. Large books no longer hit the time limit (D28).
+- The memory of each reading process is also watched from outside, which covers the PDF engine (D28).
+
 ## [0.1.1] - 2026-11-20
 
 Corrections after the first test on Windows. Test script: `docs/testing/v0.1.1.md`.

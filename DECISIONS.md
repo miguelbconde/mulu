@@ -176,7 +176,7 @@ A new component, `crates/mulu-extract`, turns each file into its metadata and a 
 
 Tests: books in several scripts and encodings, file names in Latin, Greek, Cyrillic and Chinese, damaged and truncated files, a 50 MB "zip bomb" stopped by the limits, and 2,000 rounds of random or damaged input in every format, with no crash. Cost: twelve new components in the build: `zip`, `chardetng`, `encoding_rs` and nine small helpers they use (two only on macOS), all passing the D22 checks; the ZIP compression formats Mulu does not need (zopfli, bzip2, zstd and others) are left out.
 
-### D24. PDFs are read with pdf_oxide (developer)
+### D24. PDFs are read with pdf_oxide (developer) — replaced by D28
 
 Chosen by a measured comparison, published with its code in `research/pdf-extraction`: five engines on 61 PDFs with known text in 17 languages and scripts (made by LibreOffice, Chrome, XeLaTeX, pdfLaTeX and ReportLab) and on the 1,103 real, often damaged, PDFs of the pdf.js test suite.
 
@@ -221,6 +221,17 @@ Tests: a file over the memory allowance, a reader that runs out of memory while 
 The first test on Windows (0.1.0) read 3,292 files, 13.8 GB, in 1 h 10 min: one file at a time. From 0.1.1, Mulu starts one reading process per two processors, at most three, and gives each the next file in the list; the text is still added to the index one file at a time. Measured on the 1,165 PDFs of the D24 tests on a two-processor machine: 14.2 s with one process, 7.5 s with two. Each process keeps its own time and memory limits (D25), so the worst case is three times the memory allowance; the usual case is a few tens of megabytes each. The processes still run at low priority.
 
 The catalog now records, for each file, the time spent reading it and adding it to the index, and the user can copy a reading report (counts, reasons, times and the slowest files; names and sizes only) to send to the developer. The reason a library is slow is found from these figures before the next optimization.
+
+### D28. PDFs are read with PDFium, replacing pdf_oxide (developer)
+
+*Replaces D24.* The first test on a real library (D27) showed PDF reading far slower than measured: 26 minutes for 3,292 files, some books taking 40 to 120 seconds. Two of the slow books, publisher PDFs with an accessibility structure tree, took 16 and 86 seconds with pdf_oxide (and up to 887 MB of memory); PDFium read each in under half a second with under 50 MB. The cause is pdf_oxide's handling of the structure tree; the synthetic corpus of D24 had none. Measured again from Rust, the way Mulu uses it, PDFium finds 97.5% of the words on the right page against 97.7%, has no crash or time limit on the 1,103 real PDFs, and its slowest file takes 0.35 s against 4.91 s. Details in `research/pdf-extraction` (revision section).
+
+- **What PDFium is:** Google's PDF engine, the one in Chrome, mature and tested on the web's PDFs. It is written in C++, not a memory-safe language: this is the cost. It runs only inside the separate reading process, with its time limit; and since its memory is invisible to the allocation count of D25, Mulu now also watches each reading process's memory from outside (`sysinfo`, every 100 ms) and stops it past its allowance.
+- **How it ships:** the prebuilt library of [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) (built on GitHub Actions, without JavaScript and without XFA forms), version chromium/8125, downloaded by `scripts/fetch-pdfium.sh` and checked against SHA-256 checksums written in the script, then shipped inside the installer with its licenses. About 4 MB more in the Windows installer. Mulu talks to it through `pdfium-render`.
+- **What changes for the user:** much faster reading of real books; large books such as complete works no longer hit the time limit.
+- **Alternatives:** keep pdf_oxide and work around its structure-tree path (reading raw text spans and assembling lines ourselves; still 8 s on one book, and the assembly would be Mulu's to maintain); report the problem to pdf_oxide and wait. pdf_oxide may be measured again later; the reader sits behind Mulu's own interface.
+- **Components:** pdf_oxide and its 53 components leave; `pdfium-render`, `libloading` (ISC license, now allowed) and `sysinfo` come in. The `ttf-parser` exception in `deny.toml` is gone; `chrono` remains, through pdfium-render.
+- **Not tested yet:** loading the library inside the macOS application on a real Mac (macOS is still experimental).
 
 ## Open
 

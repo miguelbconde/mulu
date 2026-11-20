@@ -41,6 +41,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      # The PDF engine's library (D28), checked against its pinned checksum.
+      - name: Fetch the PDF engine
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) platform=win-x64 ;;
+            macOS) platform=mac-univ ;;
+            *) platform=linux-x64 ;;
+          esac
+          library="$(scripts/fetch-pdfium.sh "$platform")"
+          # On Windows, a Windows-style path for the tests.
+          if [ "$RUNNER_OS" = "Windows" ]; then library="$(cygpath -w "$library")"; fi
+          echo "MULU_PDFIUM=$library" >> "$GITHUB_ENV"
       - name: Formatting
         run: cargo fmt --all --check
       - name: Lints

@@ -52,6 +52,23 @@ fn extract(engine: &str, path: &str) -> Result<Vec<String>, String> {
         }
         "pdf-extract" => pdf_extract::extract_text_by_pages(path).map_err(|e| e.to_string()),
         "hayro" => hayro_text::extract(path),
+        // PDFium through pdfium-render, the way Mulu would use it (re-measured on
+        // 2026-11-20 after the first test on real books, see the README).
+        "pdfium-rs" => {
+            let library = std::env::var("PDFIUM_LIBRARY").map_err(|_| "set PDFIUM_LIBRARY".to_owned())?;
+            let bindings = pdfium_render::prelude::Pdfium::bind_to_library(library).map_err(|e| e.to_string())?;
+            let pdfium = pdfium_render::prelude::Pdfium::new(bindings);
+            let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+            let document = pdfium.load_pdf_from_byte_slice(&bytes, None).map_err(|e| e.to_string())?;
+            let mut pages = Vec::new();
+            for page in document.pages().iter() {
+                // As Mulu does (crates/mulu-extract/src/pdf.rs): CR LF to LF, and the
+                // mark of a word hyphenated at a line end removed.
+                let text = page.text().map(|t| t.all()).unwrap_or_default();
+                pages.push(text.replace("\r\n", "\n").replace(['\u{2}', '\u{FFFE}'], ""));
+            }
+            Ok(pages)
+        }
         _ => Err(format!("unknown engine {engine}")),
     }
 }
