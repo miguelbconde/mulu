@@ -305,7 +305,13 @@ fn random_input_never_crashes() {
                 bytes[at] = next() as u8;
             }
         }
-        for format in [Format::Pdf, Format::Text, Format::Markdown, Format::Html, Format::Epub] {
+        for format in [
+            Format::Pdf,
+            Format::Text,
+            Format::Markdown,
+            Format::Html,
+            Format::Epub,
+        ] {
             let _ = extract_bytes(format, &bytes, &Limits::default());
         }
     }
