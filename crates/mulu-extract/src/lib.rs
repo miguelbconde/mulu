@@ -19,13 +19,14 @@ mod html;
 mod pdf;
 mod plain;
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
 /// The file formats Mulu can read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Format {
     Pdf,
     Text,
@@ -50,7 +51,7 @@ impl Format {
 }
 
 /// Where a section sits in its file, so a passage can say where it was found.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Place {
     /// The whole file, for formats with no pages or chapters.
     Whole,
@@ -64,14 +65,14 @@ pub enum Place {
 }
 
 /// One page, chapter or part of a file, with its text.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Section {
     pub place: Place,
     pub text: String,
 }
 
 /// What a reader found in a file.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Document {
     pub title: Option<String>,
     pub authors: Vec<String>,
@@ -84,7 +85,7 @@ pub struct Document {
 
 /// Why a file could not be read. The interface turns each kind into a plain-language
 /// message; the file can still be found by its name (decision D21).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Problem {
     /// Not a format Mulu reads.
     Unsupported,
@@ -98,6 +99,10 @@ pub enum Problem {
     NoText,
     /// The file could not be opened (missing, no permission, still in the cloud…).
     Unreadable(String),
+    /// Reading took longer than the time limit; the reading process was stopped.
+    TimedOut,
+    /// The reading process stopped unexpectedly while reading this file.
+    ReaderStopped,
 }
 
 impl fmt::Display for Problem {
@@ -109,6 +114,8 @@ impl fmt::Display for Problem {
             Problem::TooLarge => write!(f, "file too large"),
             Problem::NoText => write!(f, "no text found"),
             Problem::Unreadable(detail) => write!(f, "could not open the file: {detail}"),
+            Problem::TimedOut => write!(f, "reading took too long"),
+            Problem::ReaderStopped => write!(f, "the reader stopped on this file"),
         }
     }
 }
@@ -176,7 +183,11 @@ pub fn extract(path: &Path, limits: &Limits) -> Result<Document, Problem> {
             let mut bytes = Vec::new();
             file.take(max + 1)
                 .read_to_end(&mut bytes)
-                .map_err(|e| Problem::Unreadable(e.to_string()))?;
+                .map_err(|e| match e.kind() {
+                    // The reading process's memory allowance was reached (D25).
+                    std::io::ErrorKind::OutOfMemory => Problem::TooLarge,
+                    _ => Problem::Unreadable(e.to_string()),
+                })?;
             extract_bytes(format, &bytes, limits)
         }
     }

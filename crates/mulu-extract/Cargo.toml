@@ -19,6 +19,7 @@ mulu-text = { path = "../mulu-text" }
 # encryption (RC4, needed to open many copy-restricted PDFs) kept.
 pdf_oxide = { version = "=0.3.78", default-features = false, features = ["legacy-crypto"] }
 quick-xml = "=0.42.0"
+serde = { version = "=1.0.229", features = ["derive"] }
 unicode-normalization.workspace = true
 zip = { version = "=9.8.0", default-features = false, features = ["deflate-flate2"] }
 

@@ -1,0 +1,23 @@
+[package]
+name = "mulu-reader"
+description = "Mulu's isolated reading process: files are read in a separate process with time and memory limits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Counts every memory allocation of the reading process and refuses those past its
+# allowance (D25). Small, no dependencies of its own.
+cap = "=0.1.2"
+mulu-extract = { path = "../mulu-extract" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[lints]
+workspace = true

@@ -7,7 +7,19 @@
 // On Windows, do not open a console window next to the application.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+// Counts the memory used by the reading process, which runs this same program (D25).
+// In the window process the allowance is unlimited.
+#[global_allocator]
+static ALLOCATOR: mulu_reader::MemoryCap = mulu_reader::memory_cap();
+
 fn main() {
+    // Started with `--read-worker`, this program is Mulu's reading process: it reads
+    // files for the window process and never opens a window (D25).
+    if std::env::args().nth(1).as_deref() == Some(mulu_reader::WORKER_FLAG) {
+        let settings = mulu_reader::Settings::from_args(std::env::args().skip(2));
+        mulu_reader::serve(&ALLOCATOR, settings);
+        return;
+    }
     tauri::Builder::default()
         .run(tauri::generate_context!())
         .expect("Mulu could not start");

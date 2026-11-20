@@ -193,6 +193,19 @@ How Mulu uses it: one section per page, with the page's printed label when the P
 
 Costs and limits: 53 new Rust components, among them two flagged by RustSec as unmaintained (`chrono`, `ttf-parser`; no known vulnerability), allowed in `deny.toml` with this reason; a young project with one main maintainer and frequent releases, so updates are pinned and reviewed; one damaged file used 216 MB of memory, so the separate reading process (next step of 0.1) caps time and memory; PDFs over 512 MB (usually scans) are skipped until 0.5; right-to-left text from LibreOffice comes out backwards (Hebrew 2%, Arabic 16% found; Chrome's PDFs are fine), to be corrected and measured in 0.8 with the other languages. The reader sits behind Mulu's own interface, so PDFium can replace it if pdf_oxide stops being maintained. Metadata (title, author, year) is read in 0.6, with the catalog.
 
+### D25. Files are read in a separate, limited process (developer)
+
+A new component, `crates/mulu-reader`, runs every file reader in a **reading process**: Mulu's own program started with `--read-worker`. Mulu sends it one file path at a time and receives the text back; the reading process never writes anything and never opens a window.
+
+- **Time:** each file has a limit (2 minutes; the 645-page test book takes about 1 second). Past it, Mulu stops the process, reports the file as "took too long" and starts a new process for the next file. The process also stops itself if it is still busy 10 seconds after the limit, so it never outlives Mulu; and it ends when Mulu closes.
+- **Memory:** every allocation of the reading process is counted, with an allowance of 1 GB; past it, the allocation is refused and the process ends; the file is reported as too large. One damaged PDF in the D24 tests needed 216 MB.
+- **Crash:** any other stop is reported for that file only, and the next file goes to a new process.
+- **Priority:** the reading process runs at low priority (Windows "below normal"; `nice` on macOS and Linux), so the computer stays responsive while a library is indexed.
+
+Alternatives considered for memory: the systems' own limits (Windows job objects, `setrlimit` on Linux and macOS). They need system calls written with unchecked ("unsafe") code in Mulu, and macOS does not enforce memory limits on a process, so a separate memory watcher would still be needed there. Counting allocations inside the process works the same on all three systems and needs no unsafe code in Mulu: it uses the small `cap` component, with no dependencies of its own. It covers everything the readers allocate, since they are all written in Rust. A process started per file was also considered: simpler, but starting a process costs tens of milliseconds on Windows, minutes over a library of tens of thousands of files.
+
+Tests: a file over the memory allowance, a reader that runs out of memory while working, a file over the time limit, a reading process killed from outside, each followed by a normal file.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
