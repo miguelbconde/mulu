@@ -270,7 +270,7 @@ fn files_on_disk_with_names_in_several_scripts() {
         Err(Problem::Unreadable(_))
     ));
     assert_eq!(
-        extract(&folder.path().join("a.pdf"), &Limits::default()),
+        extract(&folder.path().join("a.djvu"), &Limits::default()),
         Err(Problem::Unsupported)
     );
     let big = Limits {
@@ -305,7 +305,13 @@ fn random_input_never_crashes() {
                 bytes[at] = next() as u8;
             }
         }
-        for format in [Format::Text, Format::Markdown, Format::Html, Format::Epub] {
+        for format in [
+            Format::Pdf,
+            Format::Text,
+            Format::Markdown,
+            Format::Html,
+            Format::Epub,
+        ] {
             let _ = extract_bytes(format, &bytes, &Limits::default());
         }
     }

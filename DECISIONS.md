@@ -176,6 +176,23 @@ A new component, `crates/mulu-extract`, turns each file into its metadata and a 
 
 Tests: books in several scripts and encodings, file names in Latin, Greek, Cyrillic and Chinese, damaged and truncated files, a 50 MB "zip bomb" stopped by the limits, and 2,000 rounds of random or damaged input in every format, with no crash. Cost: twelve new components in the build: `zip`, `chardetng`, `encoding_rs` and nine small helpers they use (two only on macOS), all passing the D22 checks; the ZIP compression formats Mulu does not need (zopfli, bzip2, zstd and others) are left out.
 
+### D24. PDFs are read with pdf_oxide (developer)
+
+Chosen by a measured comparison, published with its code in `research/pdf-extraction`: five engines on 61 PDFs with known text in 17 languages and scripts (made by LibreOffice, Chrome, XeLaTeX, pdfLaTeX and ReportLab) and on the 1,103 real, often damaged, PDFs of the pdf.js test suite.
+
+| | pdf_oxide | PDFium | hayro + own layout | pdf-extract |
+|---|---|---|---|---|
+| Words found on the right page | 97.7% | 97.4% | 73.8% | 81.7% |
+| Three-word phrases found | 95.6% | 91.4% | 68.7% | 82.6% |
+| Crashes on 1,103 real PDFs | 0 | 0 | 0 | 51 |
+| Median time per real PDF | 5 ms | 69 ms (via Python) | 5 ms | 5 ms |
+
+Why pdf_oxide: the best measured text and phrase quality, no crash and no time limit on hostile files, the fastest, and written in Rust: it ships inside Mulu's program. PDFium (the engine in Chrome) came a close second; it was set aside because it is C++ (not memory-safe) and would ship as a separate, prebuilt library. hayro, a careful pure-Rust interpreter, gives glyphs rather than text: words, lines and reading order would be Mulu's own code to write and maintain (our simple attempt reached 74%). pdf-extract crashed on 51 files.
+
+How Mulu uses it: one section per page, with the page's printed label when the PDF defines one (preface "iv", book page "1" on the 15th page of the file); copy-restricted PDFs open as in any reader; password-protected ones are listed as protected; scans without text are listed for OCR (0.5). A shared clean-up joins words hyphenated at line ends, removes line breaks inside Chinese, Japanese and Thai text, and puts back the accents old TeX fonts draw separately (88% to 99% of words found in those files).
+
+Costs and limits: 53 new Rust components, among them two flagged by RustSec as unmaintained (`chrono`, `ttf-parser`; no known vulnerability), allowed in `deny.toml` with this reason; a young project with one main maintainer and frequent releases, so updates are pinned and reviewed; one damaged file used 216 MB of memory, so the separate reading process (next step of 0.1) caps time and memory; PDFs over 512 MB (usually scans) are skipped until 0.5; right-to-left text from LibreOffice comes out backwards (Hebrew 2%, Arabic 16% found; Chrome's PDFs are fine), to be corrected and measured in 0.8 with the other languages. The reader sits behind Mulu's own interface, so PDFium can replace it if pdf_oxide stops being maintained. Metadata (title, author, year) is read in 0.6, with the catalog.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

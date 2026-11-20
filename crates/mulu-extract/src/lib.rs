@@ -10,12 +10,13 @@
 //! a [`Problem`] instead of a crash. These readers run inside the separate reading
 //! process, which adds time and memory limits on top of the ones here.
 //!
-//! Formats in version 0.1: plain text, Markdown, HTML and EPUB. PDF comes next,
-//! after a measured comparison of PDF readers.
+//! Formats in version 0.1: PDF, EPUB, plain text, Markdown and HTML.
 
+mod cleanup;
 mod decode;
 mod epub;
 mod html;
+mod pdf;
 mod plain;
 
 use std::fmt;
@@ -26,6 +27,7 @@ use std::path::Path;
 /// The file formats Mulu can read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Format {
+    Pdf,
     Text,
     Markdown,
     Html,
@@ -41,6 +43,7 @@ impl Format {
             "md" | "markdown" => Some(Format::Markdown),
             "html" | "htm" | "xhtml" => Some(Format::Html),
             "epub" => Some(Format::Epub),
+            "pdf" => Some(Format::Pdf),
             _ => None,
         }
     }
@@ -51,8 +54,10 @@ impl Format {
 pub enum Place {
     /// The whole file, for formats with no pages or chapters.
     Whole,
-    /// A page, counted from 1 (plain text split by page-break characters; PDF later).
-    Page(u32),
+    /// A page, counted from 1 in the file, with the number printed on it when the file
+    /// says it differs (a book's page "1" may be the 15th page of the PDF, a preface
+    /// may be numbered "iv").
+    Page { number: u32, label: Option<String> },
     /// One part of a book without fixed pages (an EPUB chapter, for instance), counted
     /// from 1 in reading order, with its heading when the file has one.
     Part { number: u32, title: Option<String> },
@@ -117,6 +122,10 @@ pub struct Limits {
     pub max_text_file: u64,
     /// Largest EPUB file opened, in bytes.
     pub max_archive_file: u64,
+    /// Largest PDF file read, in bytes. The PDF reader holds the whole file in memory
+    /// (twice, briefly), so very large PDFs, usually scans without text, are skipped
+    /// until version 0.5 (OCR) reads them page by page.
+    pub max_pdf_file: u64,
     /// Most bytes unpacked from one archive, all entries together (guards against
     /// "zip bombs", small files that expand to fill the memory).
     pub max_unpacked: u64,
@@ -132,6 +141,7 @@ impl Default for Limits {
         Limits {
             max_text_file: 256 * MB,
             max_archive_file: 2048 * MB,
+            max_pdf_file: 512 * MB,
             max_unpacked: 1024 * MB,
             max_entry: 128 * MB,
             max_entries: 50_000,
@@ -154,12 +164,17 @@ pub fn extract(path: &Path, limits: &Limits) -> Result<Document, Problem> {
             }
             finish(epub::read(file, limits)?)
         }
-        Format::Text | Format::Markdown | Format::Html => {
-            if size > limits.max_text_file {
+        Format::Pdf | Format::Text | Format::Markdown | Format::Html => {
+            let max = if format == Format::Pdf {
+                limits.max_pdf_file
+            } else {
+                limits.max_text_file
+            };
+            if size > max {
                 return Err(Problem::TooLarge);
             }
             let mut bytes = Vec::new();
-            file.take(limits.max_text_file + 1)
+            file.take(max + 1)
                 .read_to_end(&mut bytes)
                 .map_err(|e| Problem::Unreadable(e.to_string()))?;
             extract_bytes(format, &bytes, limits)
@@ -170,6 +185,12 @@ pub fn extract(path: &Path, limits: &Limits) -> Result<Document, Problem> {
 /// Reads a file already loaded in memory.
 pub fn extract_bytes(format: Format, bytes: &[u8], limits: &Limits) -> Result<Document, Problem> {
     let document = match format {
+        Format::Pdf => {
+            if bytes.len() as u64 > limits.max_pdf_file {
+                return Err(Problem::TooLarge);
+            }
+            pdf::read(bytes.to_vec())?
+        }
         Format::Text | Format::Markdown => {
             if bytes.len() as u64 > limits.max_text_file {
                 return Err(Problem::TooLarge);

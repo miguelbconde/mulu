@@ -14,7 +14,12 @@ encoding_rs = "=0.8.44"
 # Chooses the pure-Rust decompressor (miniz_oxide) for `zip`; already used through Tauri.
 flate2 = { version = "=1.1.11", default-features = false, features = ["rust_backend"] }
 html5ever = "=0.40.1"
+mulu-text = { path = "../mulu-text" }
+# PDF reader, chosen by measured comparison (D24). Optional parts left out; old
+# encryption (RC4, needed to open many copy-restricted PDFs) kept.
+pdf_oxide = { version = "=0.3.78", default-features = false, features = ["legacy-crypto"] }
 quick-xml = "=0.42.0"
+unicode-normalization.workspace = true
 zip = { version = "=9.8.0", default-features = false, features = ["deflate-flate2"] }
 
 [dev-dependencies]

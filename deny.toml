@@ -16,7 +16,14 @@ targets = [
 unmaintained = "all"
 yanked = "deny"
 # An advisory is ignored only with a written reason and a decision in DECISIONS.md.
-ignore = []
+ignore = [
+    # Both come with the PDF reader, pdf_oxide (D24). "Unmaintained" notices, not known
+    # vulnerabilities. ttf-parser reads fonts embedded in PDFs, which are untrusted: it
+    # runs inside the separate reading process, with time and memory limits. Reviewed
+    # whenever pdf_oxide is updated; replaced if a vulnerability is published.
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; via pdf_oxide; isolated reading process (D24)" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained; via pdf_oxide, dates only (D24)" },
+]
 
 [licenses]
 # Licenses compatible with GPL-3.0-or-later.
