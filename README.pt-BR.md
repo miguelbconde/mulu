@@ -4,7 +4,7 @@
 
 **O Mulu é um bibliotecário digital gratuito e de código aberto para Windows e macOS.** Ele encontra os livros e textos do seu computador, lê cada um e permite pesquisar dentro de todos ao mesmo tempo, em fração de segundo. Funciona inteiramente sem internet.
 
-> **Situação: ainda não está pronto para uso.** O Mulu está sendo projetado e construído às claras. A versão 0.0.1 é um ensaio para testadores: só abre uma janela, para testar a instalação. A busca chega na versão 0.1, descrita no [roteiro](ROADMAP.md) (em inglês).
+> **Situação: versão inicial de testes.** O Mulu está sendo projetado e construído às claras. A versão 0.1 é para testadores: indexa uma pasta de livros (PDF, EPUB, texto simples, Markdown, HTML) e pesquisa neles. O que vem depois está no [roteiro](ROADMAP.md) (em inglês).
 
 ## O que o Mulu vai fazer
 
