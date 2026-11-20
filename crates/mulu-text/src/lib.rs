@@ -45,6 +45,9 @@ pub enum Search {
     SingleCharacter(String),
     /// A sequence of terms that must appear in this order, at these relative positions.
     Phrase(Vec<(u32, String)>),
+    /// Every word that starts with this (folded) text, typed as `melancol*` (decision
+    /// D21). Only one word, of at least two letters, in a script written with spaces.
+    Prefix(String),
 }
 
 struct Builder {
@@ -157,6 +160,16 @@ pub fn search(query: &str) -> Search {
         && g.chars().next().is_some_and(is_unspaced)
     {
         return Search::SingleCharacter(fold(g));
+    }
+    if let Some(stem) = trimmed.strip_suffix('*') {
+        let terms = index_terms(stem);
+        if let [term] = terms.as_slice()
+            && term.text.chars().count() >= 2
+            && !term.text.chars().any(is_unspaced)
+            && term.end == stem.len()
+        {
+            return Search::Prefix(term.text.clone());
+        }
     }
     let terms = index_terms(trimmed);
     let Some(first) = terms.first().map(|t| t.position) else {

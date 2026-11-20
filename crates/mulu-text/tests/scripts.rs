@@ -18,7 +18,24 @@ fn finds(document: &str, query: &str) -> bool {
                 })
             })
         }
+        Search::Prefix(prefix) => index_terms(document)
+            .iter()
+            .any(|t| t.text.starts_with(&prefix)),
     }
+}
+
+#[test]
+fn prefixes() {
+    let doc = "A Melancolia de Dürer; o melancólico; a melodia.";
+    assert_eq!(search("melancol*"), Search::Prefix("melancol".into()));
+    assert!(finds(doc, "melancol*"));
+    assert!(finds(doc, "MELANCÓL*"));
+    assert!(finds(doc, "dur*"));
+    assert!(!finds(doc, "melanci*"));
+    // One letter, several words, or Chinese: the star is ignored.
+    assert_eq!(search("m*"), search("m"));
+    assert_eq!(search("o melan*"), search("o melan"));
+    assert_eq!(search("自由*"), search("自由"));
 }
 
 #[test]

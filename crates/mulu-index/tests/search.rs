@@ -124,6 +124,9 @@ fn counts_from_the_index_match_the_passages() {
         "长江",
         "capitu ressaca",
         "de",
+        "dissimul*",
+        "olh*",
+        "capi* ressaca",
     ] {
         let results = index.search(query).unwrap();
         for file in &results.files {
@@ -185,4 +188,15 @@ fn the_index_survives_closing_and_reopening() {
     let index = LibraryIndex::open(folder.path()).unwrap();
     index.refresh().unwrap();
     assert_eq!(summary(&index, "conto"), [(9, 1)]);
+}
+
+#[test]
+fn words_by_their_beginning() {
+    let index = library();
+    // "oblíqua" and "olhos": accents ignored, every form counted.
+    assert_eq!(summary(&index, "OLH*"), [(1, 3), (2, 1)]);
+    assert_eq!(summary(&index, "obliq*"), [(1, 1)]);
+    let hits = first_file_hits(&index, "dissimul*");
+    assert_eq!(hits[0].passage.matched, "dissimulada");
+    assert!(summary(&index, "zzz*").is_empty());
 }
