@@ -4,6 +4,10 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-20
+
+First version that searches, for testers. Test script: `docs/testing/v0.1.0.md`.
+
 ### Added
 
 - Automated checks on third-party components with cargo-deny, on every change and daily: known vulnerabilities, unmaintained components, licenses and sources (D22).

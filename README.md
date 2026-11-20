@@ -4,7 +4,7 @@
 
 **Mulu is a free, open-source digital librarian for Windows and macOS.** It finds the books and texts on your computer, reads them, and lets you search inside all of them at once, in a fraction of a second. It works entirely offline.
 
-> **Status: not ready to use yet.** Mulu is being designed and built in the open. Version 0.0.1 is a rehearsal for testers: it only opens a window, to test installation. Search arrives in version 0.1, described in the [roadmap](ROADMAP.md).
+> **Status: early test version.** Mulu is being designed and built in the open. Version 0.1 is for testers: it indexes one folder of books (PDF, EPUB, plain text, Markdown, HTML) and searches them. What comes next is in the [roadmap](ROADMAP.md).
 
 ## What Mulu will do
 
