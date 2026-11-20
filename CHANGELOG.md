@@ -7,6 +7,7 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 ### Added
 
 - Automated checks on third-party components with cargo-deny, on every change and daily: known vulnerabilities, unmaintained components, licenses and sources (D22).
+- File readers (`crates/mulu-extract`) for plain text, Markdown, HTML and EPUB, with metadata, chapters in reading order, encoding detection, DRM detection and size limits against hostile files (D23).
 - Decision D21 (addendum 2: features from DocFetcher, OCR languages and engine comparison, help, reference competitors) recorded; roadmap updated.
 
 ## [0.0.1] - 2026-11-19

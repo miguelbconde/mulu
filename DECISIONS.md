@@ -165,6 +165,17 @@ Alternatives considered: `cargo-audit` (the RustSec project's own tool) checks o
 
 The check covers the components built for Windows and macOS, the systems Mulu is distributed for. Linux is used only by the automated tests; its window components (GTK 3, whose bindings are no longer maintained, including the `glib` component of D18) are not shipped to anyone. No advisory is ignored; any future exception needs a written reason in `deny.toml` and an entry here.
 
+### D23. Readers for plain text, Markdown, HTML and EPUB (developer)
+
+A new component, `crates/mulu-extract`, turns each file into its metadata and a list of sections (pages, or chapters for formats without fixed pages), which become index entries (D20).
+
+- **HTML and EPUB chapters:** the tokenizer of html5ever, the HTML parser of the Servo browser engine, already inside Mulu through Tauri. Only the tokenizer is used (no document tree), so memory stays proportional to the text; scripts and styles are skipped and never run. Alternative considered: Cloudflare's `lol_html`, a fast streaming rewriter, but a new component built for rewriting pages rather than reading them.
+- **EPUB:** read by Mulu's own short code on top of `zip` and `quick-xml` (the latter already inside Mulu through Tauri), following the package's reading order. Alternatives considered: ready-made EPUB libraries (`epub-parser`, `rbook`); they bring more components and leave out what Mulu needs most: size checks on the bytes actually unpacked (against "zip bombs") and the distinction between DRM and the harmless font obfuscation some publishers use. Books with DRM (Adobe, Apple, Barnes & Noble, Readium LCP) are listed as protected; Mulu never tries to remove the protection.
+- **Character encodings:** byte-order mark, then the encoding the file declares, then UTF-8, then a guess by `chardetng`, the detector Firefox uses (Windows-1252, Shift_JIS, GBK, Big5, KOI8-R and others), decoding with `encoding_rs`, also from Firefox.
+- **Markdown** is read as plain text in 0.1: its marks are punctuation, which the search already ignores. **Plain text** has no pages, unless it carries page-break characters (form feed), as some converters produce.
+
+Tests: books in several scripts and encodings, file names in Latin, Greek, Cyrillic and Chinese, damaged and truncated files, a 50 MB "zip bomb" stopped by the limits, and 2,000 rounds of random or damaged input in every format, with no crash. Cost: twelve new components in the build: `zip`, `chardetng`, `encoding_rs` and nine small helpers they use (two only on macOS), all passing the D22 checks; the ZIP compression formats Mulu does not need (zopfli, bzip2, zstd and others) are left out.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
