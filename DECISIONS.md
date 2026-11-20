@@ -216,6 +216,12 @@ Tests: a file over the memory allowance, a reader that runs out of memory while 
 - **Results** follow the project instructions, section 6: one line per file with its occurrences; one occurrence shows its passage, several fold behind an arrow, ten at a time with "show more"; the term in highlighter yellow and marked for screen readers; page (printed number when the PDF has one) or chapter.
 - **Help:** a "?" button with a short manual in the three interface languages. Searching the help with Mulu's own search comes later.
 
+### D27. Several reading processes at once (developer)
+
+The first test on Windows (0.1.0) read 3,292 files, 13.8 GB, in 1 h 10 min: one file at a time. From 0.1.1, Mulu starts one reading process per two processors, at most three, and gives each the next file in the list; the text is still added to the index one file at a time. Measured on the 1,165 PDFs of the D24 tests on a two-processor machine: 14.2 s with one process, 7.5 s with two. Each process keeps its own time and memory limits (D25), so the worst case is three times the memory allowance; the usual case is a few tens of megabytes each. The processes still run at low priority.
+
+The catalog now records, for each file, the time spent reading it and adding it to the index, and the user can copy a reading report (counts, reasons, times and the slowest files; names and sizes only) to send to the developer. The reason a library is slow is found from these figures before the next optimization.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

@@ -29,6 +29,8 @@ const TEXTS = {
     problemsTitle: "Files that could not be read",
     problemsNote: "These files can still be found by their name.",
     close: "Close",
+    copyReport: "Copy a reading report for the developer",
+    copied: "Copied. Paste it in your message.",
     finding: "Looking for books in the folder…",
     indexing: (done, total) => `Reading the books: ${n(done)} of ${n(total)}. You can already search what has been read.`,
     ready: (total) => total === 1 ? "1 file in the library." : `${n(total)} files in the library.`,
@@ -99,6 +101,8 @@ const TEXTS = {
     problemsTitle: "Arquivos que não puderam ser lidos",
     problemsNote: "Esses arquivos ainda podem ser achados pelo nome.",
     close: "Fechar",
+    copyReport: "Copiar um relatório da leitura para o desenvolvedor",
+    copied: "Copiado. Cole na sua mensagem.",
     finding: "Procurando livros na pasta…",
     indexing: (done, total) => `Lendo os livros: ${n(done)} de ${n(total)}. Já dá para pesquisar no que foi lido.`,
     ready: (total) => total === 1 ? "1 arquivo na biblioteca." : `${n(total)} arquivos na biblioteca.`,
@@ -169,6 +173,8 @@ const TEXTS = {
     problemsTitle: "Archivos que no se pudieron leer",
     problemsNote: "Estos archivos todavía se pueden encontrar por su nombre.",
     close: "Cerrar",
+    copyReport: "Copiar un informe de la lectura para el desarrollador",
+    copied: "Copiado. Péguelo en su mensaje.",
     finding: "Buscando libros en la carpeta…",
     indexing: (done, total) => `Leyendo los libros: ${n(done)} de ${n(total)}. Ya puede buscar en lo que se ha leído.`,
     ready: (total) => total === 1 ? "1 archivo en la biblioteca." : `${n(total)} archivos en la biblioteca.`,
@@ -466,15 +472,61 @@ function openFile(id, reveal) {
 
 $("problems-button").addEventListener("click", async () => {
   const files = await call("problems");
+  // Grouped by reason, the most frequent first.
+  const groups = new Map();
+  for (const file of files) {
+    const why = reason(file.problem);
+    if (!groups.has(why)) groups.set(why, []);
+    groups.get(why).push(file);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+  const summary = $("problems-summary");
+  summary.replaceChildren();
   const list = $("problems-list");
   list.replaceChildren();
-  for (const file of files) {
-    const item = el("li");
-    item.append(el("span", file.name, "file-name"), el("span", ` — ${reason(file.problem)}`, "file-problem"));
-    item.append(el("div", file.folder, "file-folder"));
-    list.append(item);
+  for (const [why, group] of ordered) {
+    summary.append(el("li", `${why}: ${n(group.length)}`));
+    const heading = el("h3", `${why} (${n(group.length)})`, "label");
+    const items = el("ul", null, "plain-list");
+    for (const file of group) {
+      const item = el("li");
+      item.append(el("span", file.name, "file-name"));
+      item.append(el("div", file.folder, "file-folder"));
+      items.append(item);
+    }
+    list.append(heading, items);
   }
+  $("copied").textContent = "";
   showDialog($("problems-dialog"));
+});
+
+// A plain-text report that the user can paste in a message, to find what makes the
+// reading slow or fail. Only file names, sizes and times: never their content.
+$("copy-report").addEventListener("click", async () => {
+  const [status, report, files] = await Promise.all([call("status"), call("report"), call("problems")]);
+  if (!report) return;
+  const lines = [];
+  lines.push(`Mulu ${$("version").textContent} — ${navigator.userAgent}`);
+  lines.push(`Files: ${report.files}; read with text: ${report.indexed}; could not be read: ${files.length}; ${Math.round(report.megabytes)} MB`);
+  if (status.last_run !== null && status.last_run !== undefined) lines.push(`Last reading: ${status.last_run} s`);
+  lines.push(`Time in the reading processes: ${Math.round(report.read_ms / 1000)} s; adding to the index: ${Math.round(report.index_ms / 1000)} s`);
+  const counts = new Map();
+  for (const file of files) {
+    const kind = file.problem ? (typeof file.problem === "string" ? file.problem : Object.keys(file.problem)[0]) : "?";
+    counts.set(kind, (counts.get(kind) || 0) + 1);
+  }
+  lines.push("Reasons: " + [...counts.entries()].map(([k, c]) => `${k} ${c}`).join(", "));
+  lines.push("Slowest files (read ms, index ms, MB, sections, path):");
+  for (const f of report.slowest) {
+    const kind = f.problem ? (typeof f.problem === "string" ? f.problem : Object.keys(f.problem)[0]) : "";
+    lines.push(`${f.read_ms}\t${f.index_ms}\t${f.megabytes.toFixed(1)}\t${f.sections}\t${f.path}${kind ? "\t" + kind : ""}`);
+  }
+  try {
+    await navigator.clipboard.writeText(lines.join("\n"));
+    $("copied").textContent = T.copied;
+  } catch (error) {
+    console.error(error);
+  }
 });
 
 (function buildHelp() {

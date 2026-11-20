@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
-<body data-version="0.1.0">
+<body data-version="0.1.1">
   <header class="masthead">
     <span class="seal" aria-hidden="true">目录</span>
     <span class="wordmark">Mulu</span>
@@ -59,19 +59,30 @@
   </div>
 
   <footer>
-    <span class="label"><span data-i18n="version">Version</span> <span id="version">0.1.0</span></span>
+    <span class="label"><span data-i18n="version">Version</span> <span id="version">0.1.1</span></span>
     <span class="label footer-keys" data-i18n="keys">Ctrl+F: search · Enter or double click: open the file</span>
   </footer>
 
   <dialog id="problems-dialog" aria-labelledby="problems-title">
-    <h2 id="problems-title" data-i18n="problemsTitle">Files that could not be read</h2>
+    <div class="dialog-head">
+      <h2 id="problems-title" data-i18n="problemsTitle">Files that could not be read</h2>
+      <button type="button" class="close close-x" data-i18n-title="close" title="Close">×</button>
+    </div>
     <p class="note" data-i18n="problemsNote">These files can still be found by their name.</p>
-    <ul id="problems-list" class="plain-list"></ul>
-    <p class="dialog-actions"><button type="button" class="primary close" data-i18n="close">Close</button></p>
+    <ul id="problems-summary" class="plain-list"></ul>
+    <div id="problems-list"></div>
+    <p class="dialog-actions">
+      <button type="button" id="copy-report" class="link" data-i18n="copyReport">Copy a reading report for the developer</button>
+      <span id="copied" class="note" aria-live="polite"></span>
+      <button type="button" class="primary close" data-i18n="close">Close</button>
+    </p>
   </dialog>
 
   <dialog id="help-dialog" aria-labelledby="help-title">
-    <h2 id="help-title" data-i18n="helpTitle">Help</h2>
+    <div class="dialog-head">
+      <h2 id="help-title" data-i18n="helpTitle">Help</h2>
+      <button type="button" class="close close-x" data-i18n-title="close" title="Close">×</button>
+    </div>
     <div id="help-body"></div>
     <p class="dialog-actions"><button type="button" class="primary close" data-i18n="close">Close</button></p>
   </dialog>
