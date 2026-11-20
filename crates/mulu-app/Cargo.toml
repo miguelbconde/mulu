@@ -12,8 +12,13 @@ publish.workspace = true
 tauri-build = { version = "=2.7.6", features = [] }
 
 [dependencies]
+mulu-library = { path = "../mulu-library" }
 mulu-reader = { path = "../mulu-reader" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
 tauri = { version = "=2.12.7", features = [] }
+# The native "choose a folder" window (official Tauri plugin).
+tauri-plugin-dialog = "=2.8.4"
 
 [lints]
 workspace = true

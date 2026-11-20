@@ -1,16 +1,241 @@
 //! Mulu (目录): the desktop application.
 //!
-//! Version 0.0.1 is a rehearsal build: it only opens the window, so that the whole
-//! delivery path (automatic build, download, install without administrator rights,
-//! first launch) can be tested before search exists.
+//! The window (in `ui/`) asks this program for everything through a few commands:
+//! choose the library folder, follow the indexing, search, read passages, list the
+//! files that could not be read, open a file. The library itself lives in
+//! `mulu-library`; files are read in the separate reading process (`mulu-reader`),
+//! which is this same program started with `--read-worker` (D25).
 
 // On Windows, do not open a console window next to the application.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use mulu_library::{Answer, FoundFile, Library, Passage, Progress};
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use tauri::{Manager, State};
+use tauri_plugin_dialog::DialogExt;
 
 // Counts the memory used by the reading process, which runs this same program (D25).
 // In the window process the allowance is unlimited.
 #[global_allocator]
 static ALLOCATOR: mulu_reader::MemoryCap = mulu_reader::memory_cap();
+
+/// What Mulu remembers between sessions, in its own data folder.
+#[derive(Default, Serialize, Deserialize)]
+struct Config {
+    library: Option<PathBuf>,
+}
+
+#[derive(Default)]
+struct App {
+    data: PathBuf,
+    library: Mutex<Option<Arc<Library>>>,
+    progress: Arc<Mutex<Option<Progress>>>,
+}
+
+#[derive(Serialize)]
+struct Status {
+    library: Option<String>,
+    progress: Option<Progress>,
+    /// Files in the library.
+    files: u64,
+    problems: usize,
+}
+
+type CommandResult<T> = Result<T, String>;
+
+fn text_error(e: impl std::fmt::Display) -> String {
+    e.to_string()
+}
+
+impl App {
+    fn library(&self) -> Option<Arc<Library>> {
+        self.library.lock().ok().and_then(|l| l.clone())
+    }
+
+    fn config_path(&self) -> PathBuf {
+        self.data.join("config.json")
+    }
+
+    fn load_config(&self) -> Config {
+        std::fs::read_to_string(self.config_path())
+            .ok()
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_config(&self, config: &Config) -> std::io::Result<()> {
+        std::fs::create_dir_all(&self.data)?;
+        let text = serde_json::to_string_pretty(config).map_err(std::io::Error::other)?;
+        std::fs::write(self.config_path(), text)
+    }
+
+    /// Opens the library of `root` and starts finding and reading its files in the
+    /// background. Searches work while it runs.
+    fn start(&self, root: &Path) -> Result<(), String> {
+        // Each library folder has its own catalog and index.
+        let store = self
+            .data
+            .join(format!("library-{:016x}", fingerprint(root)));
+        let library = Arc::new(Library::open(root, &store).map_err(text_error)?);
+        if let Ok(mut slot) = self.library.lock() {
+            *slot = Some(Arc::clone(&library));
+        }
+        let progress = Arc::clone(&self.progress);
+        std::thread::spawn(move || {
+            let set = |p: Option<Progress>| {
+                if let Ok(mut slot) = progress.lock() {
+                    *slot = p;
+                }
+            };
+            set(Some(Progress {
+                done: 0,
+                total: 0,
+                current: None,
+            }));
+            if library.scan().is_err() {
+                set(None);
+                return;
+            }
+            let Ok(program) = std::env::current_exe() else {
+                set(None);
+                return;
+            };
+            let mut reader = mulu_reader::Reader::new(program, mulu_reader::Settings::default());
+            let _ = library.index_pending(&mut reader, |p| {
+                set(Some(p.clone()));
+                true
+            });
+            set(None);
+        });
+        Ok(())
+    }
+}
+
+/// A stable number for a folder path (FNV-1a), to name its data folder.
+fn fingerprint(path: &Path) -> u64 {
+    path.to_string_lossy()
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
+        })
+}
+
+#[tauri::command]
+fn status(app: State<'_, App>) -> CommandResult<Status> {
+    let library = app.library();
+    let (files, problems) = match &library {
+        Some(l) => (
+            l.progress().map_err(text_error)?.total,
+            l.problems().map_err(text_error)?.len(),
+        ),
+        None => (0, 0),
+    };
+    Ok(Status {
+        library: library.map(|l| l.root().display().to_string()),
+        progress: app.progress.lock().ok().and_then(|p| p.clone()),
+        files,
+        problems,
+    })
+}
+
+// Asynchronous, so that the folder dialog does not block the window while it is open.
+#[tauri::command]
+async fn choose_folder(
+    handle: tauri::AppHandle,
+    app: State<'_, App>,
+) -> CommandResult<Option<String>> {
+    let Some(choice) = handle.dialog().file().blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let root = choice.into_path().map_err(text_error)?;
+    app.start(&root)?;
+    app.save_config(&Config {
+        library: Some(root.clone()),
+    })
+    .map_err(text_error)?;
+    Ok(Some(root.display().to_string()))
+}
+
+#[tauri::command]
+fn search(app: State<'_, App>, query: String) -> CommandResult<Option<Answer>> {
+    match app.library() {
+        Some(library) => library.search(&query).map(Some).map_err(text_error),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn passages(
+    app: State<'_, App>,
+    query: String,
+    file: u64,
+    skip: usize,
+    limit: usize,
+) -> CommandResult<Vec<Passage>> {
+    match app.library() {
+        Some(library) => library
+            .passages(&query, file, skip, limit.min(200))
+            .map_err(text_error),
+        None => Ok(Vec::new()),
+    }
+}
+
+#[tauri::command]
+fn problems(app: State<'_, App>) -> CommandResult<Vec<FoundFile>> {
+    match app.library() {
+        Some(library) => library.problems().map_err(text_error),
+        None => Ok(Vec::new()),
+    }
+}
+
+/// Opens a file of the library with the program the system uses for it, or shows it in
+/// its folder. Only files listed in the catalog can be opened.
+#[tauri::command]
+fn open_file(app: State<'_, App>, file: u64, reveal: bool) -> CommandResult<()> {
+    let library = app.library().ok_or("no library")?;
+    let path = library
+        .path_of(file)
+        .map_err(text_error)?
+        .ok_or("unknown file")?;
+    let mut command = system_open(&path, reveal);
+    command.spawn().map(|_| ()).map_err(text_error)
+}
+
+fn system_open(path: &Path, reveal: bool) -> std::process::Command {
+    #[cfg(windows)]
+    {
+        let mut command = std::process::Command::new("explorer.exe");
+        if reveal {
+            let mut arg = std::ffi::OsString::from("/select,");
+            arg.push(path);
+            command.arg(arg);
+        } else {
+            command.arg(path);
+        }
+        command
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let mut command = std::process::Command::new("open");
+        if reveal {
+            command.arg("-R");
+        }
+        command.arg(path);
+        command
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        let mut command = std::process::Command::new("xdg-open");
+        command.arg(if reveal {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        });
+        command
+    }
+}
 
 fn main() {
     // Started with `--read-worker`, this program is Mulu's reading process: it reads
@@ -21,6 +246,30 @@ fn main() {
         return;
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let data = app.path().app_data_dir()?;
+            let state = App {
+                data,
+                ..App::default()
+            };
+            // Reopen the library chosen before, and look for new files in it.
+            if let Some(root) = state.load_config().library
+                && root.is_dir()
+            {
+                let _ = state.start(&root);
+            }
+            app.manage(state);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            status,
+            choose_folder,
+            search,
+            passages,
+            problems,
+            open_file
+        ])
         .run(tauri::generate_context!())
         .expect("Mulu could not start");
 }
