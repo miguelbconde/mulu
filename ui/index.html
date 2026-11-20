@@ -11,37 +11,69 @@
   <header class="masthead">
     <span class="seal" aria-hidden="true">目录</span>
     <span class="wordmark">Mulu</span>
-    <span class="label" data-i18n="rehearsal">Rehearsal version</span>
+    <form id="search-form" class="search" role="search" hidden>
+      <label for="query" class="visually-hidden" data-i18n="searchLabel">Search the library</label>
+      <input id="query" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="searchPlaceholder" placeholder="Search your books">
+      <button type="submit" class="primary" data-i18n="searchButton">Search</button>
+    </form>
+    <button type="button" id="help-button" class="help-button" aria-haspopup="dialog" data-i18n-title="helpTitle" title="Help">?</button>
   </header>
 
-  <div class="scroll">
+  <div class="scroll" id="scroll">
   <main>
-    <h1 data-i18n="welcome">Welcome to Mulu.</h1>
-    <p class="lede" data-i18n="purpose">This rehearsal version only checks that Mulu downloads, installs and opens correctly on your computer. Search arrives in version 0.1.</p>
-
-    <hr>
-
-    <section aria-labelledby="first-step">
-      <h2 id="first-step" class="label" data-i18n="firstStep">First step</h2>
-      <button type="button" class="primary" disabled aria-describedby="soon" data-i18n="chooseFolder">Choose the folder with your books</button>
-      <p id="soon" class="note" data-i18n="soon">Available in version 0.1.</p>
-    </section>
-
-    <hr>
-
-    <section aria-labelledby="promises">
-      <h2 id="promises" class="label" data-i18n="promisesTitle">Promises</h2>
+    <!-- First launch: one single action (decision D2). -->
+    <section id="welcome" hidden>
+      <h1 data-i18n="welcome">Welcome to Mulu.</h1>
+      <p class="lede" data-i18n="purpose">Choose the folder where you keep your books. Mulu reads them and lets you search every word inside, on this computer only.</p>
+      <hr>
+      <button type="button" id="choose" class="primary" data-i18n="chooseFolder">Choose the folder with your books</button>
+      <p class="note" data-i18n="chooseNote">Mulu only reads your files: it never changes, moves or deletes them.</p>
+      <hr>
+      <h2 class="label" data-i18n="promisesTitle">Promises</h2>
       <ul class="promises">
         <li data-i18n="offline">Works entirely offline. No account, no ads, no data collection.</li>
         <li data-i18n="readOnly">Only reads your files. Nothing is changed without your confirmation.</li>
         <li data-i18n="free">Free software, under the GNU GPL, version 3 or later.</li>
       </ul>
     </section>
+
+    <section id="library" hidden>
+      <div class="library-line">
+        <span class="label" data-i18n="libraryLabel">Library</span>
+        <span id="library-path" class="path"></span>
+      </div>
+      <div id="indexing" class="indexing" hidden>
+        <progress id="indexing-bar" max="1" value="0" aria-labelledby="indexing-text"></progress>
+        <p id="indexing-text" class="note" aria-live="polite"></p>
+      </div>
+      <p id="ready-text" class="note" hidden></p>
+      <button type="button" id="problems-button" class="link" hidden></button>
+
+      <div id="results" aria-live="polite"></div>
+      <div id="start-hint" class="hint">
+        <p data-i18n="hint1">Type a word, a name or a concept and press Enter.</p>
+        <p data-i18n="hint2">Use quotes for an exact phrase ("olhos de ressaca") and a star for the beginning of a word (melancol*).</p>
+      </div>
+    </section>
   </main>
   </div>
 
   <footer>
     <span class="label"><span data-i18n="version">Version</span> <span id="version">0.0.1</span></span>
+    <span class="label footer-keys" data-i18n="keys">Ctrl+F: search · Enter or double click: open the file</span>
   </footer>
+
+  <dialog id="problems-dialog" aria-labelledby="problems-title">
+    <h2 id="problems-title" data-i18n="problemsTitle">Files that could not be read</h2>
+    <p class="note" data-i18n="problemsNote">These files can still be found by their name.</p>
+    <ul id="problems-list" class="plain-list"></ul>
+    <p class="dialog-actions"><button type="button" class="primary close" data-i18n="close">Close</button></p>
+  </dialog>
+
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <h2 id="help-title" data-i18n="helpTitle">Help</h2>
+    <div id="help-body"></div>
+    <p class="dialog-actions"><button type="button" class="primary close" data-i18n="close">Close</button></p>
+  </dialog>
 </body>
 </html>

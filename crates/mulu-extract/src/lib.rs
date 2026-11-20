@@ -99,6 +99,9 @@ pub enum Problem {
     NoText,
     /// The file could not be opened (missing, no permission, still in the cloud…).
     Unreadable(String),
+    /// Stored in the cloud and not downloaded to this computer: not read, so that Mulu
+    /// never makes the cloud service download a whole library.
+    InCloud,
     /// Reading took longer than the time limit; the reading process was stopped.
     TimedOut,
     /// The reading process stopped unexpectedly while reading this file.
@@ -114,6 +117,7 @@ impl fmt::Display for Problem {
             Problem::TooLarge => write!(f, "file too large"),
             Problem::NoText => write!(f, "no text found"),
             Problem::Unreadable(detail) => write!(f, "could not open the file: {detail}"),
+            Problem::InCloud => write!(f, "in the cloud, not downloaded"),
             Problem::TimedOut => write!(f, "reading took too long"),
             Problem::ReaderStopped => write!(f, "the reader stopped on this file"),
         }

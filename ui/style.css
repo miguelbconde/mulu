@@ -176,3 +176,236 @@ footer {
   padding: 16px 40px;
   border-top: 1px solid var(--rule);
 }
+
+/* ---------------------------------------------------------------- Version 0.1 */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[hidden] { display: none !important; }
+
+.masthead .search {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  max-width: 640px;
+  margin-left: 24px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--serif);
+  font-size: 19px;
+  padding: 9px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.search input:focus-visible,
+.file-row:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.help-button {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 19px;
+  cursor: pointer;
+}
+
+main:has(#library:not([hidden])) { max-width: 860px; }
+
+.library-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.path {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.indexing progress {
+  width: 100%;
+  height: 6px;
+  margin-top: 14px;
+  accent-color: var(--stamp);
+}
+
+.indexing .note { margin-top: 6px; }
+
+button.link {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--stamp);
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.link.small { font-size: 12px; color: var(--ink-soft); }
+
+.hint {
+  margin-top: 36px;
+  color: var(--ink-soft);
+}
+
+.hint p { margin: 0 0 8px; }
+
+.summary {
+  margin: 28px 0 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+h2.by-name { margin: 32px 0 8px; }
+
+ol.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.file {
+  border-top: 1px solid var(--rule);
+  padding: 14px 0 12px;
+}
+
+.file-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  cursor: default;
+  border-radius: 4px;
+}
+
+.file-names {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+
+.file-folder {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.file-problem { font-style: italic; }
+
+.count {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--stamp);
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.toggle .arrow { color: var(--stamp); width: 1em; }
+
+ol.passages {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0 0 0 22px;
+}
+
+.passage {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.passage .place {
+  display: inline-block;
+  min-width: 3.2em;
+  margin-right: 6px;
+  color: var(--stamp);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The search term, like a highlighter (decision D4). Dark text on a light yellow keeps
+   a contrast well above 4.5:1; the <mark> element also tells screen readers. */
+mark {
+  background: var(--highlight);
+  color: var(--ink);
+  padding: 0 1px;
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+dialog {
+  max-width: 640px;
+  width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 28px 32px;
+  color: var(--ink);
+  font-family: var(--serif);
+}
+
+dialog::backdrop { background: rgba(28, 27, 26, 0.35); }
+
+dialog h2 { margin: 0 0 8px; font-weight: 400; outline: none; }
+
+dialog h3.label { margin: 22px 0 6px; }
+
+.plain-list {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.plain-list li { margin: 6px 0; }
+
+.dialog-actions { margin: 24px 0 0; text-align: right; }
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}

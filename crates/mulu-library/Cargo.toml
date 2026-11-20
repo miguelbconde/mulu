@@ -1,0 +1,25 @@
+[package]
+name = "mulu-library"
+description = "Mulu's library: finds the books in a folder, keeps the catalog, indexes them in the reading process and answers searches"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+mulu-extract = { path = "../mulu-extract" }
+mulu-index = { path = "../mulu-index" }
+mulu-reader = { path = "../mulu-reader" }
+mulu-text = { path = "../mulu-text" }
+# The catalog (decision D1). SQLite is compiled into Mulu: nothing to install.
+rusqlite = { version = "=0.43.0", features = ["bundled"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[lints]
+workspace = true

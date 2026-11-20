@@ -7,6 +7,8 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 ### Added
 
 - Automated checks on third-party components with cargo-deny, on every change and daily: known vulnerabilities, unmaintained components, licenses and sources (D22).
+- The window of version 0.1: choose the folder with your books; Mulu finds and reads them in the background, with a progress bar, and searches work at once; results with occurrence counts, passages with page or chapter and the term highlighted; files found by name; the list of files that could not be read, with the reason; open a file or show it in its folder; Ctrl+F; help (D26).
+- Library catalog in SQLite; indexing resumes where it stopped; files kept only in the cloud are never read (D26).
 - Search by the beginning of a word: `melancol*` finds melancolia, melancólico, melancholy (D21).
 - Isolated reading process (`crates/mulu-reader`): files are read in a separate, low-priority process with a time limit and a memory allowance; a file that hangs, uses too much memory or crashes the reader is reported and the next file is read normally (D25).
 - PDF reader (pdf_oxide), page by page with printed page numbers, chosen by a published comparison of five engines (`research/pdf-extraction`, D24).
