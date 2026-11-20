@@ -1,0 +1,20 @@
+[package]
+name = "mulu-index"
+description = "Mulu's full-text index: stores pages of text and finds every occurrence of a search, with passages"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+mulu-text = { path = "../mulu-text" }
+tantivy = { version = "=0.27.0", default-features = false, features = ["mmap", "lz4-compression"] }
+unicode-segmentation.workspace = true
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[lints]
+workspace = true

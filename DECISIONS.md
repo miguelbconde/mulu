@@ -132,6 +132,15 @@ Windows Sandbox, chosen in D12, fails to start on the maintainer's Windows 11 Pr
 
 Test versions that read files are therefore tried in a separate, standard Windows account that cannot see the tester's personal files, against a copy of the library placed in Public Documents. Windows Sandbox remains an option for testers on whose computers it works. This is a separation of accounts, not a disposable machine; Mulu's own read-only design, provenance attestations and automated tests remain the main protections. Instructions: [docs/testing/test-account.md](docs/testing/test-account.md).
 
+### D20. How the index stores and counts (developer)
+
+- **One index entry per page** (or per chapter or section, for formats without fixed pages), with the file it belongs to. This is what lets every passage show its page or section.
+- **Counts come from the index itself.** The number of occurrences in each file is read from the index's lists of positions, without reading the stored text. Exact phrases are counted by checking that each word sits at its expected position after the first.
+- **Passages are cut on demand.** Only the passages on screen (the first ones of each file) are cut from the stored text; the rest are fetched when the user asks for more.
+- **Several words without quotes** match files that contain all of them, anywhere in the file, not necessarily on the same page (project instructions, section 5).
+
+Why: the first version cut a passage for every occurrence, which took 1.8 seconds for a very common Chinese character in only 3,080 pages. With counts from the index and passages on demand, the same search takes 22 ms; with ten times more text (30,800 pages, 1.2 million occurrences) counting takes 2 ms and the first screen of results is ready in at most 50 ms (single run on the development machine; formal benchmarks come with 0.1). Tantivy's own phrase counters are internal to the library, so Mulu reads the public position lists and counts itself; a test checks that these counts always equal the passages found in the text.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
