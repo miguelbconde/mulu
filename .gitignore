@@ -22,3 +22,5 @@ Thumbs.db
 
 # Research corpora are downloaded, never committed
 /research/*/corpus/
+/vendor/
+__pycache__/

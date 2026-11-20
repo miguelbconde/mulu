@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-ENGINES = ["pdfium", "pdf_oxide", "hayro", "pdf-extract", "poppler"]
+ENGINES = ["pdfium-rs", "pdf_oxide", "pdfium", "hayro", "pdf-extract", "poppler"]
 SCRIPT = {"por": "Latin", "spa": "Latin", "fra": "Latin", "deu": "Latin", "ita": "Latin", "lat": "Latin",
           "eng": "Latin", "ell": "Greek (polytonic)", "rus": "Cyrillic", "heb": "Hebrew", "arb": "Arabic",
           "hin": "Devanagari", "tha": "Thai", "zhs": "Chinese", "zht": "Chinese", "jpn": "Japanese", "kor": "Korean"}

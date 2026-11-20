@@ -27,6 +27,8 @@ ENGINES = {
     "pdf-extract": lambda pdf: [str(HARNESS), "extract", "pdf-extract", pdf],
     "hayro": lambda pdf: [str(HARNESS), "extract", "hayro", pdf],
     "pdfium": lambda pdf: [sys.executable, str(HERE / "pdfium_extract.py"), pdf],
+    # The same engine without Python, as Mulu uses it (needs PDFIUM_LIBRARY).
+    "pdfium-rs": lambda pdf: [str(HARNESS), "extract", "pdfium-rs", pdf],
     "poppler": None,  # reference only: pdftotext, pages split at form feeds
 }
 

@@ -3,7 +3,16 @@
 use mulu_extract::{Format, Limits, Place, Problem, extract, extract_bytes};
 use std::path::PathBuf;
 
+/// The PDFium library: `scripts/fetch-pdfium.sh PLATFORM`, then the path of the library
+/// in MULU_PDFIUM (the automated checks do both).
+pub fn use_pdfium() {
+    let path = std::env::var_os("MULU_PDFIUM")
+        .expect("set MULU_PDFIUM to the PDFium library (see scripts/fetch-pdfium.sh)");
+    mulu_extract::set_pdfium_library(std::path::Path::new(&path));
+}
+
 fn fixture(name: &str) -> PathBuf {
+    use_pdfium();
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
         .join(name)
@@ -62,6 +71,7 @@ fn a_scan_has_no_text() {
 
 #[test]
 fn damaged_pdfs_give_a_problem_not_a_crash() {
+    use_pdfium();
     let limits = Limits::default();
     assert!(matches!(
         extract_bytes(Format::Pdf, b"", &limits),

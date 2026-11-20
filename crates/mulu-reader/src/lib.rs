@@ -40,6 +40,9 @@ pub const WORKER_FLAG: &str = "--read-worker";
 /// Default memory allowance of the reading process.
 pub const MEMORY_LIMIT: usize = 1024 * 1024 * 1024;
 
+/// How often Mulu checks the time and the memory of a reading process at work.
+const WATCH_EVERY: Duration = Duration::from_millis(100);
+
 /// Default time limit for one file.
 pub const TIME_LIMIT: Duration = Duration::from_secs(120);
 
@@ -65,10 +68,12 @@ enum Response {
 }
 
 /// Settings of a reading process, passed to it on its command line.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub memory_limit: usize,
     pub time_limit: Duration,
+    /// Where the PDF engine's library is (D28); by default, next to the program.
+    pub pdfium: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -76,17 +81,24 @@ impl Default for Settings {
         Settings {
             memory_limit: MEMORY_LIMIT,
             time_limit: TIME_LIMIT,
+            pdfium: None,
         }
     }
 }
 
 impl Settings {
-    fn to_args(self) -> Vec<OsString> {
-        vec![
+    fn to_args(&self) -> Vec<OsString> {
+        let mut args: Vec<OsString> = vec![
             WORKER_FLAG.into(),
             format!("--memory={}", self.memory_limit).into(),
             format!("--seconds={}", self.time_limit.as_secs_f64()).into(),
-        ]
+        ];
+        if let Some(pdfium) = &self.pdfium {
+            let mut arg = OsString::from("--pdfium=");
+            arg.push(pdfium);
+            args.push(arg);
+        }
+        args
     }
 
     /// Reads the settings from the reading process's command line.
@@ -102,6 +114,9 @@ impl Settings {
             {
                 settings.time_limit = Duration::from_secs_f64(s.max(0.0));
             }
+            if let Some(path) = arg.strip_prefix("--pdfium=") {
+                settings.pdfium = Some(PathBuf::from(path));
+            }
         }
         settings
     }
@@ -113,6 +128,9 @@ impl Settings {
 pub fn serve(allocator: &MemoryCap, settings: Settings) {
     // Started at most a few milliseconds after the program, before any file is read.
     let _ = allocator.set_limit(allocator.allocated().saturating_add(settings.memory_limit));
+    if let Some(pdfium) = &settings.pdfium {
+        mulu_extract::set_pdfium_library(pdfium);
+    }
 
     // Watchdog: a file still being read long after the limit means Mulu is gone or
     // could not stop this process; stop it here.
@@ -212,27 +230,54 @@ impl Reader {
             }
         }
         let time_limit = self.settings.time_limit;
+        let memory_limit = u64::try_from(self.settings.memory_limit).unwrap_or(u64::MAX);
+        let started = Instant::now();
         let worker = self.worker.as_mut().ok_or(Problem::ReaderStopped)?;
-        match worker.answers.recv_timeout(time_limit) {
-            Ok(line) => match serde_json::from_str::<Response>(&line) {
-                Ok(Response::Document(document)) => Ok(document),
-                Ok(Response::Problem(problem)) => Err(problem),
-                Err(_) => {
-                    self.stop();
-                    Err(Problem::ReaderStopped)
+        let pid = sysinfo::Pid::from_u32(worker.child.id());
+        // If the system cannot be asked (very rare), the allocation count still applies.
+        let mut system = sysinfo::System::new().ok();
+        loop {
+            match worker.answers.recv_timeout(WATCH_EVERY) {
+                Ok(line) => {
+                    return match serde_json::from_str::<Response>(&line) {
+                        Ok(Response::Document(document)) => Ok(document),
+                        Ok(Response::Problem(problem)) => Err(problem),
+                        Err(_) => {
+                            self.stop();
+                            Err(Problem::ReaderStopped)
+                        }
+                    };
                 }
-            },
-            Err(RecvTimeoutError::Timeout) => {
-                self.stop();
-                Err(Problem::TimedOut)
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                let out_of_memory = self.stop_and_report().contains("memory allocation");
-                Err(if out_of_memory {
-                    Problem::TooLarge
-                } else {
-                    Problem::ReaderStopped
-                })
+                Err(RecvTimeoutError::Timeout) => {
+                    if started.elapsed() >= time_limit {
+                        self.stop();
+                        return Err(Problem::TimedOut);
+                    }
+                    // Memory seen from outside: this also counts what the PDF engine,
+                    // written in C++, uses (D28).
+                    let over = system.as_mut().is_some_and(|system| {
+                        system.refresh_processes_specifics(
+                            sysinfo::ProcessesToUpdate::Some(&[pid]),
+                            false,
+                            sysinfo::ProcessRefreshKind::nothing().with_memory(),
+                        );
+                        system
+                            .process(pid)
+                            .is_some_and(|p| p.memory() > memory_limit)
+                    });
+                    if over {
+                        self.stop();
+                        return Err(Problem::TooLarge);
+                    }
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    let out_of_memory = self.stop_and_report().contains("memory allocation");
+                    return Err(if out_of_memory {
+                        Problem::TooLarge
+                    } else {
+                        Problem::ReaderStopped
+                    });
+                }
             }
         }
     }

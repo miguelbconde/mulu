@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "../../vendor/pdfium/mac-univ/lib/libpdfium.dylib": "pdfium/libpdfium.dylib",
+      "../../vendor/pdfium/mac-univ/LICENSE": "pdfium/LICENSE",
+      "../../vendor/pdfium/mac-univ/licenses/": "pdfium/licenses/"
+    }
+  }
+}

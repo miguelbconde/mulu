@@ -144,12 +144,30 @@ fn kill(pid: u32) {
 }
 
 #[test]
+fn pdfs_are_read_in_the_reading_process() {
+    let pdfium = std::env::var_os("MULU_PDFIUM")
+        .expect("set MULU_PDFIUM to the PDFium library (see scripts/fetch-pdfium.sh)");
+    let settings = Settings {
+        pdfium: Some(PathBuf::from(pdfium)),
+        ..Settings::default()
+    };
+    let mut reader = Reader::new(worker(), settings);
+    let book =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../mulu-extract/tests/fixtures/book.pdf");
+    let document = reader.read(&book).unwrap();
+    assert_eq!(document.sections.len(), 4);
+    assert!(document.sections[2].text.contains("liberdade"));
+}
+
+#[test]
 fn settings_round_trip_through_the_command_line() {
     let settings = Settings::from_args([
         "--read-worker".into(),
         "--memory=1234".into(),
         "--seconds=2.5".into(),
+        "--pdfium=/a b/libpdfium.so".into(),
     ]);
+    assert_eq!(settings.pdfium, Some(PathBuf::from("/a b/libpdfium.so")));
     assert_eq!(settings.memory_limit, 1234);
     assert_eq!(settings.time_limit, Duration::from_millis(2500));
 }

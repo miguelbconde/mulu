@@ -16,6 +16,15 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+/// The file name of the PDF engine's library on this system (D28).
+const PDFIUM_FILE: &str = if cfg!(windows) {
+    "pdfium.dll"
+} else if cfg!(target_os = "macos") {
+    "libpdfium.dylib"
+} else {
+    "libpdfium.so"
+};
+
 // Counts the memory used by the reading process, which runs this same program (D25).
 // In the window process the allowance is unlimited.
 #[global_allocator]
@@ -34,6 +43,8 @@ struct App {
     progress: Arc<Mutex<Option<Progress>>>,
     /// How long the last reading of the library took, in seconds.
     last_run: Arc<Mutex<Option<u64>>>,
+    /// The PDF engine's library, shipped with Mulu (D28).
+    pdfium: Option<PathBuf>,
 }
 
 #[derive(Serialize)]
@@ -87,6 +98,10 @@ impl App {
         }
         let progress = Arc::clone(&self.progress);
         let last_run = Arc::clone(&self.last_run);
+        let settings = mulu_reader::Settings {
+            pdfium: self.pdfium.clone(),
+            ..mulu_reader::Settings::default()
+        };
         std::thread::spawn(move || {
             let started = std::time::Instant::now();
             let set = |p: Option<Progress>| {
@@ -112,7 +127,7 @@ impl App {
             let workers =
                 std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).clamp(1, 3));
             let readers = (0..workers)
-                .map(|_| mulu_reader::Reader::new(&program, mulu_reader::Settings::default()))
+                .map(|_| mulu_reader::Reader::new(&program, settings.clone()))
                 .collect();
             let _ = library.index_pending(readers, |p| {
                 set(Some(p.clone()));
@@ -278,8 +293,15 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data = app.path().app_data_dir()?;
+            let pdfium = app
+                .path()
+                .resource_dir()
+                .ok()
+                .map(|dir| dir.join("pdfium").join(PDFIUM_FILE))
+                .filter(|path| path.is_file());
             let state = App {
                 data,
+                pdfium,
                 ..App::default()
             };
             // Reopen the library chosen before, and look for new files in it.

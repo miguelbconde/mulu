@@ -23,7 +23,15 @@ fn main() {
         .and_then(|n| n.parse().ok())
         .unwrap_or(1);
     let readers = (0..workers)
-        .map(|_| mulu_reader::Reader::new(&worker, mulu_reader::Settings::default()))
+        .map(|_| {
+            mulu_reader::Reader::new(
+                &worker,
+                mulu_reader::Settings {
+                    pdfium: std::env::var_os("MULU_PDFIUM").map(Into::into),
+                    ..mulu_reader::Settings::default()
+                },
+            )
+        })
         .collect();
     let start = Instant::now();
     let mut last = Instant::now();
