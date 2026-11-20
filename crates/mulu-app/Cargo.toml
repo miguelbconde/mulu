@@ -12,6 +12,7 @@ publish.workspace = true
 tauri-build = { version = "=2.7.6", features = [] }
 
 [dependencies]
+mulu-reader = { path = "../mulu-reader" }
 tauri = { version = "=2.12.7", features = [] }
 
 [lints]

@@ -7,6 +7,7 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 ### Added
 
 - Automated checks on third-party components with cargo-deny, on every change and daily: known vulnerabilities, unmaintained components, licenses and sources (D22).
+- Isolated reading process (`crates/mulu-reader`): files are read in a separate, low-priority process with a time limit and a memory allowance; a file that hangs, uses too much memory or crashes the reader is reported and the next file is read normally (D25).
 - PDF reader (pdf_oxide), page by page with printed page numbers, chosen by a published comparison of five engines (`research/pdf-extraction`, D24).
 - File readers (`crates/mulu-extract`) for plain text, Markdown, HTML and EPUB, with metadata, chapters in reading order, encoding detection, DRM detection and size limits against hostile files (D23).
 - Decision D21 (addendum 2: features from DocFetcher, OCR languages and engine comparison, help, reference competitors) recorded; roadmap updated.
