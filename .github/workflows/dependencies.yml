@@ -1,0 +1,33 @@
+# Checks the third-party components in Cargo.lock (decision D22): known vulnerabilities,
+# unmaintained or withdrawn components, licenses compatible with GPL-3.0-or-later, and
+# components coming only from crates.io. Runs on every change and once a day, so that
+# an advisory published after a change was merged is caught too.
+# Security (decision D12): read-only permissions, actions pinned to an exact commit.
+name: Dependencies
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 9 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-deny:
+    name: Dependency rules (cargo-deny)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        checks: [advisories, "bans licenses sources"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@17aeb3c839e42274e2b8adf721c8c65edfdc74dd # v2.1.3
+        with:
+          command: check ${{ matrix.checks }}

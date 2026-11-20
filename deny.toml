@@ -1,0 +1,47 @@
+# Rules for third-party components, checked by cargo-deny on every change (D22).
+# Documentation: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Check the components of the systems Mulu is distributed for. Linux is used only by
+# the automated tests, and its window components (GTK 3) are not shipped to anyone.
+targets = [
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+
+[advisories]
+# Known vulnerabilities, unmaintained or withdrawn components (RustSec database).
+unmaintained = "all"
+yanked = "deny"
+# An advisory is ignored only with a written reason and a decision in DECISIONS.md.
+ignore = []
+
+[licenses]
+# Licenses compatible with GPL-3.0-or-later.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "GPL-3.0-or-later",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+# Components may come only from crates.io: no other registries, no Git repositories.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

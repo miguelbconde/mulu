@@ -4,6 +4,11 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- Automated checks on third-party components with cargo-deny, on every change and daily: known vulnerabilities, unmaintained components, licenses and sources (D22).
+- Decision D21 (addendum 2: features from DocFetcher, OCR languages and engine comparison, help, reference competitors) recorded; roadmap updated.
+
 ## [0.0.1] - 2026-11-19
 
 Rehearsal version for testers. It only opens the window, to test the delivery path before search exists.
