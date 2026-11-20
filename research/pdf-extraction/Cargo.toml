@@ -1,0 +1,20 @@
+[package]
+name = "pdf-extraction"
+publish = false
+license = "GPL-3.0-or-later"
+description = "Mulu decision D24: comparing PDF text extraction engines"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mulu-text = { path = "../../crates/mulu-text" }
+pdf_oxide = "=0.3.78"
+pdf-extract = "=0.12.1"
+hayro-interpret = "=0.9.0"
+serde_json = "1"
+unicode-normalization = "0.1"
+
+[workspace]
+
+[profile.release]
+debug = false

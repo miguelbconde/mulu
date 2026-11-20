@@ -17,7 +17,10 @@ pub fn read(bytes: &[u8]) -> Document {
         text.split('\u{000C}')
             .enumerate()
             .map(|(i, page)| Section {
-                place: Place::Page(u32::try_from(i + 1).unwrap_or(u32::MAX)),
+                place: Place::Page {
+                    number: u32::try_from(i + 1).unwrap_or(u32::MAX),
+                    label: None,
+                },
                 text: page.to_owned(),
             })
             .collect()
@@ -57,7 +60,11 @@ mod tests {
     fn page_breaks_make_pages() {
         let document = read("primeira\u{000C}segunda\u{000C}terceira".as_bytes());
         let places: Vec<_> = document.sections.iter().map(|s| s.place.clone()).collect();
-        assert_eq!(places, [Place::Page(1), Place::Page(2), Place::Page(3)]);
+        let page = |number| Place::Page {
+            number,
+            label: None,
+        };
+        assert_eq!(places, [page(1), page(2), page(3)]);
         assert_eq!(document.sections[1].text, "segunda");
     }
 }
