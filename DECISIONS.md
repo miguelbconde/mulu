@@ -141,6 +141,30 @@ Test versions that read files are therefore tried in a separate, standard Window
 
 Why: the first version cut a passage for every occurrence, which took 1.8 seconds for a very common Chinese character in only 3,080 pages. With counts from the index and passages on demand, the same search takes 22 ms; with ten times more text (30,800 pages, 1.2 million occurrences) counting takes 2 ms and the first screen of results is ready in at most 50 ms (single run on the development machine; formal benchmarks come with 0.1). Tantivy's own phrase counters are internal to the library, so Mulu reads the public position lists and counts itself; a test checks that these counts always equal the passages found in the text.
 
+### D21. Addendum 2 accepted: features from DocFetcher, OCR, help and competitors (maintainer)
+
+Decided on 2026-11-19, in the evening.
+
+- **Taken from DocFetcher:** prefix search (`melancol*`) in scripts with spaces between words; finding files by name even when their content cannot be read; pausing and resuming indexing, even across restarts; arrows between occurrences in the preview, and Ctrl+F back to the search box; a saved web page (`page.html` + `page_files`) treated as one document. **Left out:** compressed archives (size and the risk of archives that expand to fill the disk), exclusion patterns, configurable extensions, manual term weights, range queries, memory tuning, a background folder watcher (D16) and fuzzy search (may return if research on old spellings needs it).
+- **OCR:** bundled, with the light ("fast") models: published measurements show the heavy Tesseract models cost about four times more space and time for equal or slightly better accuracy. Quality comes from image preparation, the right language and the best engine per language. Passages that come from OCR are marked as such.
+- **OCR languages in the installer:** Portuguese, Spanish, English, French, German, Italian, Latin, modern Greek and ancient Greek. **Extras on request, "experimental" until measured:** Chinese (simplified, traditional, vertical), Japanese, Korean, Cyrillic, Arabic, Hebrew, Devanagari. Extras are added through the browser: the user downloads a pack from Mulu's page and opens it; Mulu verifies it is authentic and installs it, with no network connection of its own.
+- **OCR engine comparison before the 0.5 code:** Tesseract (fast and best models), PaddleOCR PP-OCRv5, Kraken and ocrs, language by language, on good and degraded pages; main measure: the share of words a search would find; results published in `research/ocr-benchmark`.
+- **Published goal:** installer under 50 MB, measured on every version together with memory use.
+- **Help:** a "?" button with a short manual and FAQ in the interface languages, searchable with Mulu's own search, offline; error messages with "learn more". Starts in 0.1.
+- **Reference competitors:** AnyTXT Searcher (main one, the closest to Mulu: fast search on Windows with OCR) and DocFetcher. Comparison published on every version, with a reproducible method, preferably on GitHub's Windows machines.
+
+*Changes D5 (OCR language list) and the roadmap (D10).*
+
+## 2026-11-20
+
+### D22. Automated checks on dependencies with cargo-deny (developer)
+
+Every proposed change runs `cargo-deny` against `Cargo.lock`: known vulnerabilities and unmaintained or withdrawn components (RustSec advisory database), licenses compatible with GPL-3.0-or-later, and components coming only from crates.io. A daily run catches advisories published after a change was merged.
+
+Alternatives considered: `cargo-audit` (the RustSec project's own tool) checks only advisories; `cargo-deny` uses the same database and adds licenses and sources, so one tool covers both. The GitHub action is pinned to an exact commit (D12).
+
+The check covers the components built for Windows and macOS, the systems Mulu is distributed for. Linux is used only by the automated tests; its window components (GTK 3, whose bindings are no longer maintained, including the `glib` component of D18) are not shipped to anyone. No advisory is ignored; any future exception needs a written reason in `deny.toml` and an entry here.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
