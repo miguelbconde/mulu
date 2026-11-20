@@ -82,10 +82,16 @@ fn choose_index_and_search_a_library() {
     assert_eq!(passages[0].matched, "liberdade");
 
     // Prefix and Chinese.
-    assert_eq!(
-        library.search("melancol*").unwrap().files[0].name,
-        "Notas.md"
-    );
+    // Both have one occurrence ("melancolia"); equal counts come in no fixed order.
+    let mut names: Vec<String> = library
+        .search("melancol*")
+        .unwrap()
+        .files
+        .into_iter()
+        .map(|f| f.name)
+        .collect();
+    names.sort();
+    assert_eq!(names, ["Declaração.pdf", "Notas.md"]);
     assert_eq!(
         library.search("自由").unwrap().files[0].name,
         "鲁迅 - 呐喊.html"
