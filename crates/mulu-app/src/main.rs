@@ -9,7 +9,7 @@
 // On Windows, do not open a console window next to the application.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use mulu_library::{Answer, FoundFile, Library, Passage, Progress};
+use mulu_library::{Answer, FoundFile, Library, Passage, Progress, Report};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -32,6 +32,8 @@ struct App {
     data: PathBuf,
     library: Mutex<Option<Arc<Library>>>,
     progress: Arc<Mutex<Option<Progress>>>,
+    /// How long the last reading of the library took, in seconds.
+    last_run: Arc<Mutex<Option<u64>>>,
 }
 
 #[derive(Serialize)]
@@ -41,6 +43,7 @@ struct Status {
     /// Files in the library.
     files: u64,
     problems: usize,
+    last_run: Option<u64>,
 }
 
 type CommandResult<T> = Result<T, String>;
@@ -83,7 +86,9 @@ impl App {
             *slot = Some(Arc::clone(&library));
         }
         let progress = Arc::clone(&self.progress);
+        let last_run = Arc::clone(&self.last_run);
         std::thread::spawn(move || {
+            let started = std::time::Instant::now();
             let set = |p: Option<Progress>| {
                 if let Ok(mut slot) = progress.lock() {
                     *slot = p;
@@ -102,11 +107,20 @@ impl App {
                 set(None);
                 return;
             };
-            let mut reader = mulu_reader::Reader::new(program, mulu_reader::Settings::default());
-            let _ = library.index_pending(&mut reader, |p| {
+            // Several files are read at once, but no more than half the processors, so
+            // that the computer stays responsive (0.1.1; 0.1.0 read one file at a time).
+            let workers =
+                std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).clamp(1, 3));
+            let readers = (0..workers)
+                .map(|_| mulu_reader::Reader::new(&program, mulu_reader::Settings::default()))
+                .collect();
+            let _ = library.index_pending(readers, |p| {
                 set(Some(p.clone()));
                 true
             });
+            if let Ok(mut slot) = last_run.lock() {
+                *slot = Some(started.elapsed().as_secs());
+            }
             set(None);
         });
         Ok(())
@@ -137,6 +151,7 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
         progress: app.progress.lock().ok().and_then(|p| p.clone()),
         files,
         problems,
+        last_run: app.last_run.lock().ok().and_then(|t| *t),
     })
 }
 
@@ -190,6 +205,15 @@ fn problems(app: State<'_, App>) -> CommandResult<Vec<FoundFile>> {
     }
 }
 
+/// Figures about the reading, for the report the user can copy and send (0.1.1).
+#[tauri::command]
+fn report(app: State<'_, App>) -> CommandResult<Option<Report>> {
+    match app.library() {
+        Some(library) => library.report(25).map(Some).map_err(text_error),
+        None => Ok(None),
+    }
+}
+
 /// Opens a file of the library with the program the system uses for it, or shows it in
 /// its folder. Only files listed in the catalog can be opened.
 #[tauri::command]
@@ -206,11 +230,16 @@ fn open_file(app: State<'_, App>, file: u64, reveal: bool) -> CommandResult<()> 
 fn system_open(path: &Path, reveal: bool) -> std::process::Command {
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
         let mut command = std::process::Command::new("explorer.exe");
         if reveal {
-            let mut arg = std::ffi::OsString::from("/select,");
+            // Explorer wants `/select,"C:\path with spaces\file.pdf"`: the quotes only
+            // around the path. Passed as one ordinary argument, the whole thing would be
+            // quoted, and Explorer would open the Documents folder instead (0.1.0 bug).
+            let mut arg = std::ffi::OsString::from("/select,\"");
             arg.push(path);
-            command.arg(arg);
+            arg.push("\"");
+            command.raw_arg(arg);
         } else {
             command.arg(path);
         }
@@ -268,6 +297,7 @@ fn main() {
             search,
             passages,
             problems,
+            report,
             open_file
         ])
         .run(tauri::generate_context!())

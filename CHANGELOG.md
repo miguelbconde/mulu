@@ -4,6 +4,24 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-20
+
+Corrections after the first test on Windows. Test script: `docs/testing/v0.1.1.md`.
+
+### Fixed
+
+- "Show in folder" opened the Documents folder instead of the file's folder on Windows when the path had spaces.
+- The list of files that could not be read and the help can be closed from a × button at the top (and with Esc), not only from the button at the end.
+
+### Changed
+
+- Faster reading of a library: several files are read at the same time, in separate reading processes (up to half of the processors, at most three). Twice as fast on two processors in our measurement (D27).
+- The list of files that could not be read is grouped by reason, with the count of each reason at the top.
+
+### Added
+
+- "Copy a reading report for the developer": file counts, reasons, times and the slowest files (names, sizes and times only, never their content), to paste in a message.
+
 ## [0.1.0] - 2026-11-20
 
 First version that searches, for testers. Test script: `docs/testing/v0.1.0.md`.

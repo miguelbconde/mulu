@@ -19,15 +19,29 @@ mod catalog;
 mod names;
 mod walk;
 
-use catalog::Catalog;
+use catalog::{Catalog, Outcome};
 pub use catalog::{FileEntry, Status};
 use mulu_extract::{Place, Problem};
 use mulu_index::{FileResult, LibraryIndex, Page, Results};
 use mulu_reader::Reader;
 use serde::Serialize;
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
+use std::thread;
 use std::time::{Duration, Instant};
+
+/// A file read by a reading process, on its way to the index.
+struct Read {
+    entry: FileEntry,
+    outcome: std::result::Result<mulu_extract::Document, Problem>,
+    read_ms: u64,
+}
+
+fn millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+}
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = std::result::Result<T, Error>;
@@ -78,6 +92,29 @@ pub struct Answer {
     pub by_name: Vec<FoundFile>,
     pub total: u64,
     pub elapsed_ms: u64,
+}
+
+/// Figures about the reading of the library, to find what makes it slow.
+#[derive(Debug, Clone, Serialize)]
+pub struct Report {
+    pub files: u64,
+    pub indexed: u64,
+    pub megabytes: f64,
+    /// Time spent in the reading processes, and adding text to the index, all files
+    /// together (reading processes work in parallel, so the wall time is shorter).
+    pub read_ms: u64,
+    pub index_ms: u64,
+    pub slowest: Vec<SlowFile>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SlowFile {
+    pub path: String,
+    pub megabytes: f64,
+    pub read_ms: u64,
+    pub index_ms: u64,
+    pub sections: u32,
+    pub problem: Option<Problem>,
 }
 
 /// One passage around an occurrence.
@@ -134,36 +171,78 @@ impl Library {
         })
     }
 
-    /// Reads every file not read yet and adds its text to the index. `report` is called
-    /// after each file; it returns `false` to stop (the remaining files stay pending and
-    /// are read the next time).
+    /// Reads every file not read yet and adds its text to the index, with one reading
+    /// process per reader given (files are read in parallel; the text is added to the
+    /// index one file at a time). `report` is called after each file; it returns
+    /// `false` to stop (the remaining files stay pending and are read the next time).
     pub fn index_pending(
         &self,
-        reader: &mut Reader,
+        readers: Vec<Reader>,
         mut report: impl FnMut(&Progress) -> bool,
     ) -> Result<()> {
-        let pending = self.catalog().pending()?;
+        let pending: VecDeque<FileEntry> = self.catalog().pending()?.into();
         let total = self.catalog().count()?;
         let mut done = self.catalog().count_done()?;
-        let mut writer = self.index.writer(WRITER_MEMORY_MB)?;
-        let mut last_save = Instant::now();
-        let mut unsaved: Vec<(u64, Status, Option<Problem>, u32)> = Vec::new();
-        for entry in pending {
-            if !report(&Progress {
+        if pending.is_empty() {
+            report(&Progress {
                 done,
                 total,
-                current: Some(entry.name.clone()),
-            }) {
-                break;
-            }
-            let path = self.root.join(&entry.relative);
-            let outcome = if walk::is_cloud_placeholder(&path) {
-                Err(Problem::InCloud)
-            } else {
-                reader.read(&path)
-            };
+                current: None,
+            });
+            return Ok(());
+        }
+        let queue = Arc::new(Mutex::new(pending));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (sender, outcomes) = mpsc::channel::<Read>();
+        let mut workers = Vec::new();
+        for mut reader in readers {
+            let queue = Arc::clone(&queue);
+            let stop = Arc::clone(&stop);
+            let sender = sender.clone();
+            let root = self.root.clone();
+            workers.push(thread::spawn(move || {
+                loop {
+                    if stop.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    let Some(entry) = queue.lock().ok().and_then(|mut q| q.pop_front()) else {
+                        break;
+                    };
+                    let path = root.join(&entry.relative);
+                    let start = Instant::now();
+                    let outcome = if walk::is_cloud_placeholder(&path) {
+                        Err(Problem::InCloud)
+                    } else {
+                        reader.read(&path)
+                    };
+                    let read_ms = millis(start.elapsed());
+                    if sender
+                        .send(Read {
+                            entry,
+                            outcome,
+                            read_ms,
+                        })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }));
+        }
+        drop(sender);
+
+        let mut writer = self.index.writer(WRITER_MEMORY_MB)?;
+        let mut last_save = Instant::now();
+        let mut unsaved: Vec<Outcome> = Vec::new();
+        for Read {
+            entry,
+            outcome,
+            read_ms,
+        } in outcomes
+        {
+            let start = Instant::now();
             writer.remove_file(entry.id);
-            match outcome {
+            let (status, problem, sections) = match outcome {
                 Ok(document) => {
                     for (i, section) in document.sections.iter().enumerate() {
                         writer.add_page(&Page {
@@ -173,16 +252,34 @@ impl Library {
                             text: section.text.clone(),
                         })?;
                     }
-                    let pages = u32::try_from(document.sections.len()).unwrap_or(u32::MAX);
-                    unsaved.push((entry.id, Status::Indexed, None, pages));
+                    let sections = u32::try_from(document.sections.len()).unwrap_or(u32::MAX);
+                    (Status::Indexed, None, sections)
                 }
-                Err(problem) => unsaved.push((entry.id, Status::Problem, Some(problem), 0)),
-            }
+                Err(problem) => (Status::Problem, Some(problem), 0),
+            };
+            unsaved.push(Outcome {
+                id: entry.id,
+                status,
+                problem,
+                sections,
+                read_ms,
+                index_ms: millis(start.elapsed()),
+            });
             done += 1;
+            if !report(&Progress {
+                done,
+                total,
+                current: Some(entry.name.clone()),
+            }) {
+                stop.store(true, Ordering::Relaxed);
+            }
             if last_save.elapsed() >= SAVE_EVERY {
                 self.save(&mut writer, &mut unsaved)?;
                 last_save = Instant::now();
             }
+        }
+        for worker in workers {
+            let _ = worker.join();
         }
         self.save(&mut writer, &mut unsaved)?;
         report(&Progress {
@@ -198,7 +295,7 @@ impl Library {
     fn save(
         &self,
         writer: &mut mulu_index::IndexWriterHandle,
-        unsaved: &mut Vec<(u64, Status, Option<Problem>, u32)>,
+        unsaved: &mut Vec<Outcome>,
     ) -> Result<()> {
         writer.commit()?;
         self.index.refresh()?;
@@ -296,6 +393,11 @@ impl Library {
             .iter()
             .map(|e| found(e, 0))
             .collect())
+    }
+
+    /// Figures about the reading, with the `slowest` slowest files.
+    pub fn report(&self, slowest: usize) -> Result<Report> {
+        self.catalog().report(slowest)
     }
 
     /// The full path of a file of the library.

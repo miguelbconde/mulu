@@ -402,7 +402,41 @@ dialog h3.label { margin: 22px 0 6px; }
 
 .plain-list li { margin: 6px 0; }
 
-.dialog-actions { margin: 24px 0 0; text-align: right; }
+.dialog-actions {
+  margin: 24px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dialog-actions .primary { margin-left: auto; }
+
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.dialog-head h2 { flex: 1; }
+
+.close-x {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close-x:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+#problems-list h3 { margin: 22px 0 4px; }
+
+#problems-summary { margin: 12px 0 4px; }
 
 footer {
   display: flex;

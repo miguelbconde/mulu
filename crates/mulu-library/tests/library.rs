@@ -56,7 +56,7 @@ fn choose_index_and_search_a_library() {
 
     let mut reports = Vec::new();
     library
-        .index_pending(&mut reader(), |p| {
+        .index_pending(vec![reader(), reader()], |p| {
             reports.push((p.done, p.total));
             true
         })
@@ -123,6 +123,11 @@ fn choose_index_and_search_a_library() {
         ]
     );
 
+    // The reading report has a time for every file read.
+    let report = library.report(3).unwrap();
+    assert_eq!((report.files, report.indexed), (6, 4));
+    assert_eq!(report.slowest.len(), 3);
+
     // Nothing in the library folder was changed: still the same eight files.
     let mut count = 0;
     for entry in walk(folder.path()) {
@@ -142,18 +147,21 @@ fn indexing_can_stop_and_continue_later() {
         library.scan().unwrap();
         let mut seen = 0;
         library
-            .index_pending(&mut reader(), |_| {
+            .index_pending(vec![reader()], |_| {
                 seen += 1;
-                seen <= 2
+                seen < 2
             })
             .unwrap();
-        assert_eq!(library.progress().unwrap().done, 2);
-        assert_eq!(library.search("capitu").unwrap().files.len(), 1);
+        // Stopped after the second file; the file already being read is kept too.
+        let done = library.progress().unwrap().done;
+        assert!((2..6).contains(&done), "{done}");
     }
     // Mulu was closed and opened again.
     let library = Library::open(folder.path(), store.path()).unwrap();
     assert_eq!(library.scan().unwrap(), 6);
-    library.index_pending(&mut reader(), |_| true).unwrap();
+    library
+        .index_pending(vec![reader(), reader()], |_| true)
+        .unwrap();
     let progress = library.progress().unwrap();
     assert_eq!((progress.done, progress.total), (6, 6));
     assert_eq!(library.search("liberdade").unwrap().files.len(), 2);
