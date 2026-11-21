@@ -239,6 +239,16 @@ The catalog now records, for each file, the time spent reading it and adding it 
 - **Full speed** (proposed by the maintainer): while a library is being read, a "Read faster" link switches to all processors but one (at most eight) at normal priority; another link goes back to the background pace of D27. The reading stops after the files in hand and continues at the new pace. The choice lasts until Mulu is closed; reading in the background stays the default, so that the computer stays usable.
 - **Still slow:** some scanned books made "searchable" by Adobe's ClearScan take about 50 ms per page with PDFium (31 s for a 552-page book), where pdf_oxide takes 7 s. A second engine for such files was considered (the maintainer asked whether the reader could vary by PDF) and postponed: it would bring back the 53 components of pdf_oxide and its slow path on tagged PDFs (D28), for a gain on a minority of files. It is reconsidered with measurements on a set of real books, together with the files PDFium reports as damaged.
 
+### D30. Time limit by progress, physical cores, largest files first (developer)
+
+The maintainer's test of 0.1.3 (4 cores, 8 logical processors) read the library in 18 minutes against 19 for 0.1.2. "Read faster" ran 7 files at once instead of 3, but the time spent in the reading processes went from 3,378 s to 6,550 s: each file took about twice as long, so nothing was gained, and two long books passed the two-minute limit (a 7,206-page complete works and a 552-page scan).
+
+- **Time limit by progress:** the PDF reader counts pages, and the reading process reports progress every second. A file is stopped when it reads no new page for two minutes (unchanged limit), or after 30 minutes in all. Checked with the 552-page scan and a 3-second limit: read in full. The reading process's own watchdog follows the same rules.
+- **Full speed:** one reading process per physical core (from `sysinfo`), at most eight, never fewer than in the background. Logical processors share a core; PDF reading did not benefit from them in the test.
+- **Largest files first:** the files to read are taken by size, largest first (the classic "longest job first" rule), so that a long book does not keep one reading process busy alone at the end.
+- **Report:** processors, cores, and files read at once in each pace.
+- **Measured, not changed:** on scans made "searchable" with Adobe ClearScan, PDFium spends about 17 ms loading and 29 ms laying out the text of each page (about 760 text objects per page, against 18 on an ordinary scan). This is inside PDFium's text layout, which Mulu needs for words in reading order; there is no cheaper call. Revisited with D29's measurement on real books.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

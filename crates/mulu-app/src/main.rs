@@ -50,19 +50,22 @@ struct App {
     fast: Arc<AtomicBool>,
     /// Changes when the pace changes, so that the reading starts again with it.
     generation: Arc<AtomicU64>,
+    /// Whether the full speed was used during the current or last reading.
+    fast_used: Arc<AtomicBool>,
 }
 
 /// How many files are read at once. In the background (the default), at most half the
-/// processors and three files (D27); at full speed, all processors but one, at most
-/// eight, at normal priority (D29).
+/// processors and three files (D27); at full speed, one per physical core, at most
+/// eight, at normal priority (D29, D30).
 fn reading_processes(fast: bool) -> usize {
-    std::thread::available_parallelism().map_or(1, |n| {
-        if fast {
-            (n.get().saturating_sub(1)).clamp(1, 8)
-        } else {
-            (n.get() / 2).clamp(1, 3)
-        }
-    })
+    let logical = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+    let background = (logical / 2).clamp(1, 3);
+    if fast {
+        let cores = mulu_reader::physical_cores().unwrap_or(logical / 2);
+        cores.clamp(1, 8).max(background)
+    } else {
+        background
+    }
 }
 
 #[derive(Serialize)]
@@ -119,6 +122,8 @@ impl App {
         let last_run = Arc::clone(&self.last_run);
         let fast = Arc::clone(&self.fast);
         let generation = Arc::clone(&self.generation);
+        let fast_used = Arc::clone(&self.fast_used);
+        fast_used.store(self.fast.load(Ordering::SeqCst), Ordering::SeqCst);
         let settings = mulu_reader::Settings {
             pdfium: self.pdfium.clone(),
             ..mulu_reader::Settings::default()
@@ -148,6 +153,9 @@ impl App {
             loop {
                 let run = generation.load(Ordering::SeqCst);
                 let fast = fast.load(Ordering::SeqCst);
+                if fast {
+                    fast_used.store(true, Ordering::SeqCst);
+                }
                 let settings = mulu_reader::Settings {
                     low_priority: !fast,
                     ..settings.clone()
@@ -261,11 +269,30 @@ fn set_fast(app: State<'_, App>, fast: bool) {
 
 /// Figures about the reading, for the report the user can copy and send (0.1.1).
 #[tauri::command]
-fn report(app: State<'_, App>) -> CommandResult<Option<Report>> {
-    match app.library() {
-        Some(library) => library.report(25).map(Some).map_err(text_error),
-        None => Ok(None),
-    }
+fn report(app: State<'_, App>) -> CommandResult<Option<ReadingReport>> {
+    let Some(library) = app.library() else {
+        return Ok(None);
+    };
+    Ok(Some(ReadingReport {
+        figures: library.report(25).map_err(text_error)?,
+        processors: std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
+        cores: mulu_reader::physical_cores(),
+        background: reading_processes(false),
+        full_speed: reading_processes(true),
+        full_speed_used: app.fast_used.load(Ordering::SeqCst),
+    }))
+}
+
+/// The reading report, with how many files were read at once (D30).
+#[derive(Serialize)]
+struct ReadingReport {
+    #[serde(flatten)]
+    figures: Report,
+    processors: usize,
+    cores: Option<usize>,
+    background: usize,
+    full_speed: usize,
+    full_speed_used: bool,
 }
 
 /// Opens a file of the library with the program the system uses for it, or shows it in

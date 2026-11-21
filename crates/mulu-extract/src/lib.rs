@@ -21,6 +21,21 @@ mod plain;
 
 pub use pdf::set_pdfium_library;
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static PROGRESS: AtomicU64 = AtomicU64::new(0);
+
+/// How many pages this process has read so far, all files together. The reading
+/// process reports it, so that a long book that keeps advancing is not taken for a
+/// stuck one (D30).
+pub fn progress() -> u64 {
+    PROGRESS.load(Ordering::Relaxed)
+}
+
+fn advance() {
+    PROGRESS.fetch_add(1, Ordering::Relaxed);
+}
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::File;

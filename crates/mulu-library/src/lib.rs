@@ -271,7 +271,9 @@ impl Library {
                 total,
                 current: Some(entry.name.clone()),
             }) {
+                // Files already read but not yet indexed are read again next time.
                 stop.store(true, Ordering::Relaxed);
+                break;
             }
             if last_save.elapsed() >= SAVE_EVERY {
                 self.save(&mut writer, &mut unsaved)?;

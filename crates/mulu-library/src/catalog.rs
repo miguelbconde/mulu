@@ -129,15 +129,21 @@ impl Catalog {
     }
 
     fn entries(&self, filter: &str) -> Result<Vec<FileEntry>> {
+        self.entries_in_order(filter, "relative")
+    }
+
+    fn entries_in_order(&self, filter: &str, order: &str) -> Result<Vec<FileEntry>> {
         let sql =
-            format!("SELECT id, relative, name, problem FROM files {filter} ORDER BY relative");
+            format!("SELECT id, relative, name, problem FROM files {filter} ORDER BY {order}");
         let mut query = self.db.prepare(&sql)?;
         let rows = query.query_map([], row_to_entry)?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    /// The files still to read, largest first: a long book started last would keep
+    /// one reading process busy alone at the end (D30).
     pub fn pending(&self) -> Result<Vec<FileEntry>> {
-        self.entries("WHERE status = 'pending'")
+        self.entries_in_order("WHERE status = 'pending'", "size DESC, relative")
     }
 
     pub fn problems(&self) -> Result<Vec<FileEntry>> {
