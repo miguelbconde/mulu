@@ -443,3 +443,6 @@ footer {
   justify-content: space-between;
   gap: 16px;
 }
+
+.pace { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.pace .note { margin: 0; }

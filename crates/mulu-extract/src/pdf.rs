@@ -80,32 +80,62 @@ fn read_inner(bytes: &[u8]) -> Result<Document, Problem> {
         return Err(Problem::Corrupted("not a PDF file".into()));
     }
     let pdfium = pdfium()?;
-    let document = pdfium
-        .load_pdf_from_byte_slice(bytes, None)
-        .map_err(|error| match error {
-            PdfiumError::PdfiumLibraryInternalError(
-                PdfiumInternalError::PasswordError | PdfiumInternalError::SecurityError,
-            ) => Problem::Protected,
-            other => Problem::Corrupted(other.to_string()),
-        })?;
-    let mut sections = Vec::new();
-    for (index, page) in document.pages().iter().enumerate() {
-        let text = page.text().map(|t| t.all()).unwrap_or_default();
-        let number = u32::try_from(index + 1).unwrap_or(u32::MAX);
-        let label = page
-            .label()
-            .map(str::trim)
-            .filter(|l| !l.is_empty() && *l != number.to_string())
-            .map(str::to_owned);
-        sections.push(Section {
-            place: Place::Page { number, label },
-            text: tidy(&normalize(&text)),
-        });
+    let open = || {
+        pdfium
+            .load_pdf_from_byte_slice(bytes, None)
+            .map_err(|error| match error {
+                PdfiumError::PdfiumLibraryInternalError(
+                    PdfiumInternalError::PasswordError | PdfiumInternalError::SecurityError,
+                ) => Problem::Protected,
+                other => Problem::Corrupted(other.to_string()),
+            })
+    };
+    // PDFium keeps what it decoded for every page (images, fonts) until the document is
+    // closed: about 5 MB per page in scanned books with a text layer, over 1 GB for a
+    // 200-page book. Reopening the document every few pages keeps memory low (173 MB
+    // instead of 1.1 GB for that book) and costs almost nothing (D29).
+    let count = open()?.pages().len();
+    let mut sections = Vec::with_capacity(usize::try_from(count).unwrap_or(0));
+    let mut start: i32 = 0;
+    while start < count {
+        let document = open()?;
+        let end = start.saturating_add(PAGES_PER_OPENING).min(count);
+        for index in start..end {
+            let Ok(page) = document.pages().get(index) else {
+                sections.push(Section {
+                    place: Place::Page {
+                        number: page_number(index),
+                        label: None,
+                    },
+                    text: String::new(),
+                });
+                continue;
+            };
+            let text = page.text().map(|t| t.all()).unwrap_or_default();
+            let number = page_number(index);
+            let label = page
+                .label()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && *l != number.to_string())
+                .map(str::to_owned);
+            sections.push(Section {
+                place: Place::Page { number, label },
+                text: tidy(&normalize(&text)),
+            });
+        }
+        start = end;
     }
     Ok(Document {
         sections,
         ..Document::default()
     })
+}
+
+/// Pages read before the document is closed and opened again (see `read_inner`).
+const PAGES_PER_OPENING: i32 = 25;
+
+fn page_number(index: i32) -> u32 {
+    u32::try_from(index).map_or(0, |i| i.saturating_add(1))
 }
 
 /// PDFium ends lines with CR LF, and marks a word broken by a hyphen at the end of a

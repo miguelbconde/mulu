@@ -4,6 +4,18 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-20
+
+Test script: `docs/testing/v0.1.3.md`.
+
+### Fixed
+
+- Scanned books with a text layer were reported as "too large": PDFium kept every page it had read in memory (over 1 GB for a 200-page book). The document is now reopened every 25 pages: 180 MB for that book, and faster (D29).
+
+### Added
+
+- "Read faster": while the library is being read, the reading can switch to full speed (all processors but one, normal priority) and back to the background (D29).
+
 ## [0.1.2] - 2026-11-20
 
 Test script: `docs/testing/v0.1.2.md`.
