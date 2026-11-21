@@ -11,6 +11,20 @@ const TEXTS = {
   en: {
     searchLabel: "Search the library",
     basesTitle: "Libraries",
+    recommended: "(recommended)",
+    wholeComputer: "Or read the whole computer",
+    orComputer: "or the whole computer",
+    computerNote: "Your home folder and your other disks. System, program, hidden and temporary folders are left out.",
+    counting: "Counting the books…",
+    surveyTitle: "Before reading",
+    surveyIntro: (files, mb) => `Mulu found ${n(files)} book files (${size(mb)}). Untick what you do not want Mulu to read.`,
+    formatsTitle: "Formats",
+    foldersTitle: "Folders",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Plain text (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} of them are only in the cloud: Mulu lists them by name and never downloads them.`,
+    holds: (names) => `Already libraries of their own, left out here: ${names.join("; ")}.`,
+    startReading: "Read these books",
+    noBooks: "No files in the formats Mulu reads were found here.",
     addLibrary: "+ Add a library",
     removeLibrary: "Take out of Mulu",
     removeTitle: "Take this library out of Mulu?",
@@ -122,6 +136,20 @@ const TEXTS = {
   "pt-BR": {
     searchLabel: "Pesquisar na biblioteca",
     basesTitle: "Bases",
+    recommended: "(recomendado)",
+    wholeComputer: "Ou ler o computador inteiro",
+    orComputer: "ou o computador inteiro",
+    computerNote: "A sua pasta pessoal e os outros discos. Pastas do sistema, de programas, ocultas e temporárias ficam de fora.",
+    counting: "Contando os livros…",
+    surveyTitle: "Antes de ler",
+    surveyIntro: (files, mb) => `O Mulu encontrou ${n(files)} arquivos de livros (${size(mb)}). Desmarque o que você não quer que o Mulu leia.`,
+    formatsTitle: "Formatos",
+    foldersTitle: "Pastas",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Texto simples (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} deles estão só na nuvem: o Mulu lista esses pelo nome e nunca os baixa.`,
+    holds: (names) => `Já são bases e ficam de fora desta: ${names.join("; ")}.`,
+    startReading: "Ler estes livros",
+    noBooks: "Não encontrei aqui arquivos nos formatos que o Mulu lê.",
     addLibrary: "+ Acrescentar base",
     removeLibrary: "Tirar do Mulu",
     removeTitle: "Tirar esta base do Mulu?",
@@ -233,6 +261,20 @@ const TEXTS = {
   es: {
     searchLabel: "Buscar en la biblioteca",
     basesTitle: "Bibliotecas",
+    recommended: "(recomendado)",
+    wholeComputer: "O leer todo el ordenador",
+    orComputer: "o todo el ordenador",
+    computerNote: "Su carpeta personal y los otros discos. Las carpetas del sistema, de programas, ocultas y temporales quedan fuera.",
+    counting: "Contando los libros…",
+    surveyTitle: "Antes de leer",
+    surveyIntro: (files, mb) => `Mulu encontró ${n(files)} archivos de libros (${size(mb)}). Desmarque lo que no quiere que Mulu lea.`,
+    formatsTitle: "Formatos",
+    foldersTitle: "Carpetas",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Texto plano (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} de ellos están solo en la nube: Mulu los lista por su nombre y nunca los descarga.`,
+    holds: (names) => `Ya son bibliotecas propias y quedan fuera de esta: ${names.join("; ")}.`,
+    startReading: "Leer estos libros",
+    noBooks: "No se encontraron aquí archivos en los formatos que lee Mulu.",
     addLibrary: "+ Añadir biblioteca",
     removeLibrary: "Quitar de Mulu",
     removeTitle: "¿Quitar esta biblioteca de Mulu?",
@@ -450,20 +492,8 @@ async function refreshStatus() {
   $("problems-button").textContent = T.problems(status.problems);
 }
 
-$("choose").addEventListener("click", async () => {
-  $("choose").disabled = true;
-  try {
-    const chosen = await call("add_library");
-    if (chosen.Err) {
-      $("welcome-error").textContent = T.overlap(chosen.Err);
-    } else if (chosen.Ok) {
-      await refreshStatus();
-      $("query").focus();
-    }
-  } finally {
-    $("choose").disabled = false;
-  }
-});
+$("choose").addEventListener("click", () => surveyFolder($("welcome-error")));
+$("choose-computer").addEventListener("click", () => surveyComputer($("welcome-error")));
 
 // Background reading (the default) or full speed (D29).
 $("pace-button").addEventListener("click", async () => {
@@ -714,16 +744,172 @@ function excludedScopes() {
     .map(([base, scope]) => ({ base, folders: [...scope.unticked] }));
 }
 
-$("add-library").addEventListener("click", async () => {
-  $("add-error").textContent = "";
-  $("add-library").disabled = true;
+$("add-library").addEventListener("click", () => surveyFolder($("add-error")));
+$("add-computer").addEventListener("click", () => surveyComputer($("add-error")));
+
+// ---------------------------------------------------------------- Survey before reading
+
+/** Sizes in megabytes, shown in MB or GB. */
+function size(mb) {
+  return mb >= 1000 ? `${(mb / 1000).toLocaleString(language, { maximumFractionDigits: 1 })} GB` : `${n(mb)} MB`;
+}
+
+async function counting(work) {
+  showDialog($("counting-dialog"));
   try {
-    const chosen = await call("add_library");
-    if (chosen.Err) $("add-error").textContent = T.overlap(chosen.Err);
-    else if (chosen.Ok) await refreshStatus();
+    return await work();
   } finally {
-    $("add-library").disabled = false;
+    $("counting-dialog").close();
   }
+}
+
+async function surveyFolder(errorLine) {
+  errorLine.textContent = "";
+  const answer = await call("survey_folder");
+  if (answer.Err) {
+    errorLine.textContent = T.overlap(answer.Err);
+  } else if (answer.Ok) {
+    showSurvey([answer.Ok], errorLine);
+  }
+}
+
+async function surveyComputer(errorLine) {
+  errorLine.textContent = "";
+  const places = await counting(() => call("survey_computer"));
+  showSurvey(places, errorLine);
+}
+
+/** The places of the survey being shown, with what is unticked in each. */
+let surveyPlaces = [];
+
+function showSurvey(places, errorLine) {
+  const total = places.reduce((sum, p) => sum + p.survey.files, 0);
+  if (total === 0) {
+    errorLine.textContent = T.noBooks;
+    return;
+  }
+  surveyPlaces = places.filter((p) => p.survey.files > 0).map((p) => ({ ...p, out: new Set(), keep: true }));
+  const megabytes = places.reduce((sum, p) => sum + p.survey.megabytes, 0);
+  $("survey-intro").textContent = T.surveyIntro(total, megabytes);
+
+  // Formats, counted over all the places.
+  const formats = new Map();
+  for (const place of surveyPlaces) {
+    for (const [format, count] of place.survey.formats) formats.set(format, (formats.get(format) || 0) + count);
+  }
+  const formatList = $("survey-formats");
+  formatList.replaceChildren();
+  for (const [format, count] of [...formats.entries()].sort((a, b) => b[1] - a[1])) {
+    formatList.append(checkRow(`survey-format-${format}`, `${T.formatName[format] || format}`, count, true, (box) => {
+      box.dataset.format = format;
+    }));
+  }
+
+  // Folders: the top two levels of each place.
+  const placesBox = $("survey-places");
+  placesBox.replaceChildren();
+  surveyPlaces.forEach((place, i) => {
+    const block = el("div", null, "survey-place");
+    const folders = el("ul", null, "plain-list survey-list");
+    for (const folder of place.survey.folders.filter((f) => !f.path.includes("/"))) {
+      folders.append(folderRow(place, i, folder));
+    }
+    if (surveyPlaces.length === 1) {
+      block.append(el("p", place.root, "survey-place-name"), folders);
+    } else {
+      // Whole computer: each place (home folder, other disks) can be left out too.
+      const places = el("ul", null, "plain-list survey-list");
+      const row = checkRow(`survey-place-${i}`, place.root, place.survey.files, true, (box) => {
+        box.addEventListener("change", () => {
+          place.keep = box.checked;
+          for (const inner of folders.querySelectorAll("input")) inner.disabled = !box.checked;
+        });
+      });
+      row.append(folders);
+      places.append(row);
+      block.append(places);
+    }
+    placesBox.append(block);
+  });
+
+  const notes = [];
+  const cloud = surveyPlaces.reduce((sum, p) => sum + p.survey.in_cloud, 0);
+  if (cloud > 0) notes.push(T.inCloud(cloud));
+  const holds = surveyPlaces.flatMap((p) => p.holds);
+  if (holds.length > 0) notes.push(T.holds(holds));
+  $("survey-notes").textContent = notes.join(" ");
+  showDialog($("survey-dialog"));
+}
+
+/** A top folder of a place, with its subfolders, in the survey. */
+function folderRow(place, i, folder) {
+  const row = checkRow(`survey-${i}-${folder.path}`, folder.path, folder.files, true, (box) => {
+    box.addEventListener("change", () => setOut(place, folder.path, !box.checked, row));
+  });
+  const inner = place.survey.folders.filter((f) => {
+    const rest = f.path.startsWith(folder.path + "/") ? f.path.slice(folder.path.length + 1) : null;
+    return rest !== null && !rest.includes("/");
+  });
+  if (inner.length > 0) {
+    const sub = el("ul");
+    for (const child of inner) {
+      sub.append(checkRow(`survey-${i}-${child.path}`, child.path.slice(folder.path.length + 1), child.files, true, (box) => {
+        box.dataset.path = child.path;
+        box.addEventListener("change", () => setOut(place, child.path, !box.checked));
+      }));
+    }
+    row.append(sub);
+  }
+  return row;
+}
+
+/** A row with a checkbox, a label and a count. */
+function checkRow(id, text, count, checked, setup) {
+  const row = el("li");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.id = id.replace(/[^\w-]/g, "_") + "-" + boxNumber++;
+  box.checked = checked;
+  const label = el("label", text);
+  label.htmlFor = box.id;
+  const number = el("span", n(count), "tree-count");
+  number.setAttribute("aria-label", T.filesIn(count));
+  const line = el("div", null, "tree-row");
+  line.append(box, label, number);
+  row.append(line);
+  setup(box);
+  return row;
+}
+
+/** Leaves a folder out (with all below it) or lets it in again. The subfolders of a
+ *  folder left out cannot be ticked on their own: the folder is not even opened. */
+function setOut(place, path, out, row) {
+  if (out) place.out.add(path); else place.out.delete(path);
+  if (row) {
+    for (const inner of row.querySelectorAll("ul input")) {
+      inner.disabled = out;
+      inner.checked = !out && !place.out.has(inner.dataset.path);
+    }
+  }
+}
+
+$("survey-start").addEventListener("click", async () => {
+  const formats = [...$("survey-formats").querySelectorAll("input")].filter((b) => !b.checked).map((b) => b.dataset.format);
+  const libraries = surveyPlaces.filter((p) => p.keep).map((p) => ({
+    root: p.root,
+    formats,
+    // A subfolder left out inside a folder left out is already out.
+    folders: [...p.out].filter((path) => ![...p.out].some((o) => o !== path && path.startsWith(o + "/"))),
+  }));
+  $("survey-dialog").close();
+  if (libraries.length === 0) return;
+  try {
+    await call("create_libraries", { libraries });
+  } catch (error) {
+    console.error(error);
+  }
+  await refreshStatus();
+  $("query").focus();
 });
 
 // ---------------------------------------------------------------- Search

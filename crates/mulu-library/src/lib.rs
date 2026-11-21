@@ -34,6 +34,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
+pub use walk::{Skip, Survey, format_name, survey};
 
 /// A file read by a reading process, on its way to the index.
 struct Read {
@@ -193,7 +194,8 @@ impl Library {
         if !self.root.is_dir() {
             return Err(format!("library folder not found: {}", self.root.display()).into());
         }
-        let found = walk::book_files(&self.root);
+        let skip = self.skip()?;
+        let found = walk::book_files_skipping(&self.root, &skip);
         let known = self.catalog().known()?;
         let mut plan = Plan::default();
 
@@ -293,6 +295,21 @@ impl Library {
     /// When the library was last checked for changes, in seconds since 1970.
     pub fn checked(&self) -> Result<Option<i64>> {
         self.catalog().checked()
+    }
+
+    /// The formats and folders this library leaves out (chosen in the survey).
+    pub fn skip(&self) -> Result<Skip> {
+        Ok(self
+            .catalog()
+            .meta("skip")?
+            .map(|t| Skip::from_text(&t))
+            .unwrap_or_default())
+    }
+
+    /// Changes what the library leaves out. The next check takes the files now left
+    /// out out of the index, and reads those let in again.
+    pub fn set_skip(&self, skip: &Skip) -> Result<()> {
+        self.catalog().set_meta("skip", &skip.to_text())
     }
 
     fn relative(&self, path: &Path) -> String {

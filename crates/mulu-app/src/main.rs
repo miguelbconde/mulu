@@ -9,7 +9,9 @@
 // On Windows, do not open a console window next to the application.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use mulu_library::{Answer, Changes, Folder, FoundFile, Library, Passage, Progress, Report};
+use mulu_library::{
+    Answer, Changes, Folder, FoundFile, Library, Passage, Progress, Report, Skip, Survey,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
@@ -177,17 +179,6 @@ impl App {
     fn store(&self, root: &Path) -> PathBuf {
         self.data
             .join(format!("library-{:016x}", fingerprint(root)))
-    }
-
-    /// Opens the library of `root`, adds it to the list and checks it for changes, in
-    /// the background.
-    fn open(&self, root: &Path) -> Result<(), String> {
-        let library = Arc::new(Library::open(root, &self.store(root)).map_err(text_error)?);
-        if let Ok(mut bases) = self.bases.lock() {
-            bases.push(Arc::clone(&library));
-        }
-        self.run(vec![library]);
-        Ok(())
     }
 
     /// Removes the catalogs and indexes of libraries that are no longer in the list
@@ -361,44 +352,182 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
     })
 }
 
-/// Why a folder cannot become a library: it is inside one, or holds one. The window
-/// explains it in the user's language.
+/// Why a folder cannot become a library: it is a library already, or it is inside
+/// one (its books would be counted twice; the scope tree already narrows a search to
+/// it). The window explains it in the user's language.
 #[derive(Serialize)]
 #[serde(tag = "kind", content = "library", rename_all = "lowercase")]
 enum Overlap {
     Inside(String),
-    Contains(String),
     Same(String),
 }
 
-/// Asks for a folder and adds it as a new library. A folder inside a library, or one
-/// that holds a library, is refused: its books would be counted twice.
-// Asynchronous, so that the folder dialog does not block the window while it is open.
+/// A folder about to become a library, as the survey shows it before the first
+/// reading (instructions, section 1).
+#[derive(Serialize)]
+struct Location {
+    root: String,
+    survey: Survey,
+    /// Libraries inside this folder: they stay libraries of their own and are left
+    /// out of this one, so no book is counted twice.
+    holds: Vec<String>,
+}
+
+/// Checks that `root` can become a library and counts its books.
+fn locate(bases: &[Arc<Library>], root: &Path) -> Result<Location, Overlap> {
+    let mut holds = Vec::new();
+    let mut skip = Skip::default();
+    for library in bases {
+        let other = library.root();
+        let name = other.display().to_string();
+        if other == root {
+            return Err(Overlap::Same(name));
+        }
+        if root.starts_with(other) {
+            return Err(Overlap::Inside(name));
+        }
+        if let Ok(inside) = other.strip_prefix(root) {
+            skip.folders.push(
+                inside
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join("/"),
+            );
+            holds.push(name);
+        }
+    }
+    Ok(Location {
+        root: root.display().to_string(),
+        survey: mulu_library::survey(root, &skip),
+        holds,
+    })
+}
+
+/// Asks for a folder and counts its books, without reading them yet: the window then
+/// shows the survey, where formats and folders can be left out.
+// Asynchronous, so that the folder dialog and the count do not block the window.
 #[tauri::command]
-async fn add_library(
+async fn survey_folder(
     handle: tauri::AppHandle,
     app: State<'_, App>,
-) -> CommandResult<Result<Option<String>, Overlap>> {
+) -> CommandResult<Result<Option<Location>, Overlap>> {
     let Some(choice) = handle.dialog().file().blocking_pick_folder() else {
         return Ok(Ok(None));
     };
     let root = choice.into_path().map_err(text_error)?;
-    for library in app.bases() {
-        let other = library.root();
-        let name = other.display().to_string();
-        if other == root {
-            return Ok(Err(Overlap::Same(name)));
+    let bases = app.bases();
+    tauri::async_runtime::spawn_blocking(move || locate(&bases, &root).map(Some))
+        .await
+        .map_err(text_error)
+}
+
+/// The places "whole computer" means (instructions, section 1): the user's home folder
+/// and the other disks. The system, programs, hidden and temporary folders are left
+/// out by the walk itself.
+fn computer_locations() -> Vec<PathBuf> {
+    let mut places = Vec::new();
+    #[cfg(windows)]
+    {
+        if let Some(home) = std::env::var_os("USERPROFILE") {
+            places.push(PathBuf::from(home));
         }
-        if root.starts_with(other) {
-            return Ok(Err(Overlap::Inside(name)));
-        }
-        if other.starts_with(&root) {
-            return Ok(Err(Overlap::Contains(name)));
+        let system = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_owned());
+        for letter in b'A'..=b'Z' {
+            let drive = format!("{}:", char::from(letter));
+            if drive.eq_ignore_ascii_case(&system) {
+                continue;
+            }
+            let root = PathBuf::from(format!("{drive}\\"));
+            if root.is_dir() {
+                places.push(root);
+            }
         }
     }
-    app.open(&root)?;
-    app.save_config().map_err(text_error)?;
-    Ok(Ok(Some(root.display().to_string())))
+    #[cfg(not(windows))]
+    {
+        if let Some(home) = std::env::var_os("HOME") {
+            places.push(PathBuf::from(home));
+        }
+        // Other disks: /Volumes on macOS (without the link to the system disk), and
+        // the usual mount points on Linux.
+        let user = std::env::var("USER").unwrap_or_default();
+        for parent in [
+            "/Volumes".to_owned(),
+            format!("/media/{user}"),
+            "/mnt".to_owned(),
+        ] {
+            let Ok(entries) = std::fs::read_dir(&parent) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let is_link = entry.file_type().is_ok_and(|t| t.is_symlink());
+                if !is_link && entry.path().is_dir() {
+                    places.push(entry.path());
+                }
+            }
+        }
+    }
+    places
+}
+
+/// Counts the books of the whole computer, place by place, without reading them yet.
+/// Places that are already libraries, or inside one, are left out.
+#[tauri::command]
+async fn survey_computer(app: State<'_, App>) -> CommandResult<Vec<Location>> {
+    let bases = app.bases();
+    tauri::async_runtime::spawn_blocking(move || {
+        computer_locations()
+            .iter()
+            .filter_map(|place| locate(&bases, place).ok())
+            .collect()
+    })
+    .await
+    .map_err(text_error)
+}
+
+/// What the survey keeps out of one new library.
+#[derive(Deserialize)]
+struct NewLibrary {
+    root: String,
+    formats: Vec<String>,
+    folders: Vec<String>,
+}
+
+/// Creates the libraries chosen in the survey and starts reading them, one after the
+/// other. The libraries a new one holds are left out of it (see [`locate`]).
+#[tauri::command]
+fn create_libraries(app: State<'_, App>, libraries: Vec<NewLibrary>) -> CommandResult<()> {
+    for new in libraries {
+        let root = PathBuf::from(&new.root);
+        let mut folders = new.folders;
+        for library in app.bases() {
+            if library.root() == root || root.starts_with(library.root()) {
+                return Err("overlap".to_owned());
+            }
+            if let Ok(inside) = library.root().strip_prefix(&root) {
+                folders.push(
+                    inside
+                        .components()
+                        .map(|c| c.as_os_str().to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join("/"),
+                );
+            }
+        }
+        let library = Arc::new(Library::open(&root, &app.store(&root)).map_err(text_error)?);
+        library
+            .set_skip(&Skip {
+                formats: new.formats,
+                folders,
+            })
+            .map_err(text_error)?;
+        if let Ok(mut bases) = app.bases.lock() {
+            bases.push(Arc::clone(&library));
+        }
+        app.run(vec![library]);
+    }
+    app.save_config().map_err(text_error)
 }
 
 /// Takes a library out of Mulu. Its folder and files are not touched; Mulu's own
@@ -690,7 +819,9 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             status,
-            add_library,
+            survey_folder,
+            survey_computer,
+            create_libraries,
             remove_library,
             search,
             folders,
@@ -707,6 +838,40 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    /// A folder inside a library, or a library itself, cannot become a library; a
+    /// folder that holds a library can, leaving that library out (0.2.1).
+    #[test]
+    fn libraries_never_overlap() {
+        use super::{Library, Overlap, locate};
+        use std::sync::Arc;
+        let top = std::env::temp_dir().join(format!("mulu-overlap-{}", std::process::id()));
+        let home = top.join("home");
+        let store = top.join("store");
+        for (path, text) in [
+            ("home/Documentos/Biblioteca/Homero.txt", "Aquiles"),
+            ("home/Documentos/Cursos/Programa.txt", "Aquiles"),
+            ("Outros/Hesíodo.txt", "Musas"),
+        ] {
+            let path = top.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let bases = vec![Arc::new(Library::open(&home, &store).unwrap())];
+
+        assert!(matches!(locate(&bases, &home), Err(Overlap::Same(_))));
+        assert!(matches!(
+            locate(&bases, &home.join("Documentos")),
+            Err(Overlap::Inside(_))
+        ));
+        let Ok(outer) = locate(&bases, &top) else {
+            panic!("a folder holding a library can become one");
+        };
+        assert_eq!(outer.holds, [home.display().to_string()]);
+        // The books of the library inside are not counted again.
+        assert_eq!(outer.survey.files, 1);
+        let _ = std::fs::remove_dir_all(&top);
+    }
+
     /// The version shown to the user, the installer version and the package version
     /// must always be the same.
     #[test]

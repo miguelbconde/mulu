@@ -4,6 +4,21 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-21
+
+Test script: `docs/testing/v0.2.1.md`.
+
+### Added
+
+- Several libraries: "+ Add a library" in the panel; each library has its own folder tree, ↻ button and date; a search covers them all, and each result says which library it comes from. A library can be taken out of Mulu: its folder and files are never touched; Mulu's index of it is deleted the next time Mulu starts (D34).
+- A survey before the first reading: how many book files of each format and in each folder, with boxes to leave formats and folders out before anything is read; files only in the cloud are counted and never downloaded (D34).
+- "Whole computer", on the welcome screen and in the panel: the home folder and the other disks, each its own library, with system, program, hidden and temporary folders left out (D34).
+
+### Changed
+
+- A folder inside a library cannot become a library (its books would be counted twice; the scope tree already narrows a search to it). A folder that holds a library can, and leaves that library out.
+- A library whose folder is missing (an external disk not plugged in) is no longer checked, so its index is kept; the panel says the folder was not found.
+
 ### Fixed
 
 - Release 0.2.0 was built but not published: its release notes file was missing. The checks of every proposal now fail when the version has no release notes or test script.

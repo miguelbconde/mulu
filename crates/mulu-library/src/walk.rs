@@ -10,16 +10,96 @@ pub struct Found {
     pub modified: i64,
 }
 
-/// Every file of a supported format under `root`. Hidden files and folders, system
-/// folders and links are skipped (links could lead outside the library, or in circles);
-/// macOS's placeholders for files kept only in iCloud are listed under their real name.
-pub fn book_files(root: &Path) -> Vec<Found> {
+/// What a library leaves out when it is read, chosen in the survey before the first
+/// reading (instructions, section 1): formats, by their short name (see
+/// [`format_name`]), and folders, relative to the library folder with `/` between
+/// parts, each with everything below it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Skip {
+    pub formats: Vec<String>,
+    pub folders: Vec<String>,
+}
+
+impl Skip {
+    /// One rule per line: `format:pdf`, `folder:Cursos/2019`.
+    pub fn to_text(&self) -> String {
+        let formats = self.formats.iter().map(|f| format!("format:{f}"));
+        let folders = self.folders.iter().map(|f| format!("folder:{f}"));
+        formats.chain(folders).collect::<Vec<_>>().join("\n")
+    }
+
+    pub fn from_text(text: &str) -> Skip {
+        let mut skip = Skip::default();
+        for line in text.lines() {
+            if let Some(format) = line.strip_prefix("format:") {
+                skip.formats.push(format.to_owned());
+            } else if let Some(folder) = line.strip_prefix("folder:") {
+                skip.folders.push(folder.to_owned());
+            }
+        }
+        skip
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.formats.is_empty() && self.folders.is_empty()
+    }
+}
+
+/// The short name of a format, as the survey counts and the user chooses them.
+pub fn format_name(format: Format) -> &'static str {
+    match format {
+        Format::Pdf => "pdf",
+        Format::Epub => "epub",
+        Format::Text => "txt",
+        Format::Markdown => "md",
+        Format::Html => "html",
+    }
+}
+
+/// Folders left out at the top of a disk: the system and the programs (for a disk
+/// chosen as a library, or "whole computer"). Elsewhere these names are ordinary
+/// folders.
+const DISK_SYSTEM_FOLDERS: &[&str] = &[
+    "Windows",
+    "Windows.old",
+    "Program Files",
+    "Program Files (x86)",
+    "ProgramData",
+    "Recovery",
+    "PerfLogs",
+    "$WinREAgent",
+    "System",
+    "Library",
+    "Applications",
+    "private",
+    "usr",
+    "bin",
+    "sbin",
+    "etc",
+    "var",
+    "opt",
+    "tmp",
+    "proc",
+    "dev",
+    "sys",
+    "boot",
+    "snap",
+];
+
+/// Every file of a supported format under `root`, leaving out the formats and folders
+/// of `skip`. Hidden files and folders, system folders and links are skipped (links
+/// could lead outside the library, or in circles); macOS's placeholders for files kept
+/// only in iCloud are listed under their real name. Skipped folders are not even
+/// opened, so leaving out a large folder also makes the walk faster.
+pub fn book_files_skipping(root: &Path, skip: &Skip) -> Vec<Found> {
     let mut found = Vec::new();
+    let at_disk_top = root.parent().is_none();
     let mut folders = vec![root.to_owned()];
     while let Some(folder) = folders.pop() {
         let Ok(entries) = std::fs::read_dir(&folder) else {
             continue;
         };
+        let top = folder == root;
         for entry in entries.flatten() {
             let Ok(metadata) = entry.metadata() else {
                 continue;
@@ -31,7 +111,10 @@ pub fn book_files(root: &Path) -> Vec<Found> {
                 continue;
             }
             if metadata.is_dir() {
-                if !name.starts_with('.') {
+                let skipped =
+                    !skip.folders.is_empty() && skip.folders.contains(&relative_key(root, &path));
+                let system = top && at_disk_top && DISK_SYSTEM_FOLDERS.contains(&name.as_ref());
+                if !name.starts_with('.') && !skipped && !system {
                     folders.push(path);
                 }
                 continue;
@@ -41,7 +124,10 @@ pub fn book_files(root: &Path) -> Vec<Found> {
                 continue;
             }
             let shown = real.map_or_else(|| path.clone(), |real| path.with_file_name(real));
-            if Format::from_path(&shown).is_none() {
+            let Some(format) = Format::from_path(&shown) else {
+                continue;
+            };
+            if skip.formats.iter().any(|f| f == format_name(format)) {
                 continue;
             }
             found.push(Found {
@@ -57,6 +143,67 @@ pub fn book_files(root: &Path) -> Vec<Found> {
         }
     }
     found
+}
+
+/// A path relative to `root`, with `/` between parts.
+fn relative_key(root: &Path, path: &Path) -> String {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    relative
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// What a folder holds, for the survey shown before the first reading: how many book
+/// files of each format, how many are only in the cloud, and how many are in each
+/// folder (with everything below it).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+pub struct Survey {
+    pub files: u64,
+    pub megabytes: u64,
+    /// Files only in the cloud, which Mulu lists but never downloads.
+    pub in_cloud: u64,
+    pub formats: Vec<(String, u64)>,
+    pub folders: Vec<crate::Folder>,
+}
+
+/// Counts the book files under `root`, leaving out the folders of `skip` (used for
+/// folders that are already libraries of their own).
+pub fn survey(root: &Path, skip: &Skip) -> Survey {
+    let found = book_files_skipping(root, skip);
+    let mut formats: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    let mut folders: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    let mut bytes = 0u64;
+    let mut in_cloud = 0u64;
+    for file in &found {
+        bytes += file.size;
+        if is_cloud_placeholder(&file.path) {
+            in_cloud += 1;
+        }
+        let shown = std::path::PathBuf::from(shown_name(&file.path));
+        if let Some(format) = Format::from_path(&shown) {
+            *formats.entry(format_name(format).to_owned()).or_default() += 1;
+        }
+        let key = relative_key(root, &file.path);
+        let mut at = key.rfind('/').map_or("", |i| &key[..i]);
+        while !at.is_empty() {
+            *folders.entry(at.to_owned()).or_default() += 1;
+            at = at.rfind('/').map_or("", |i| &at[..i]);
+        }
+    }
+    let mut formats: Vec<(String, u64)> = formats.into_iter().collect();
+    formats.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    Survey {
+        files: found.len() as u64,
+        megabytes: bytes / 1_000_000,
+        in_cloud,
+        formats,
+        folders: folders
+            .into_iter()
+            .map(|(path, files)| crate::Folder { path, files })
+            .collect(),
+    }
 }
 
 /// The name shown for a file: its own, or the real name of an iCloud placeholder.
@@ -125,6 +272,15 @@ fn is_system(name: &str, metadata: &std::fs::Metadata) -> bool {
         const HIDDEN: u32 = 0x2;
         const SYSTEM: u32 = 0x4;
         if metadata.file_attributes() & (HIDDEN | SYSTEM) != 0 {
+            return true;
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // Folders hidden in the Finder, such as the Library folder of the home folder.
+        use std::os::macos::fs::MetadataExt;
+        const UF_HIDDEN: u32 = 0x0000_8000;
+        if metadata.st_flags() & UF_HIDDEN != 0 {
             return true;
         }
     }
