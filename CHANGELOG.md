@@ -17,6 +17,7 @@ Test script: `docs/testing/v0.1.4.md`.
 - "Read faster" reads one file per physical processor core: the extra logical processors only made each file slower (D30).
 - The largest files are read first, so that the reading does not end with one long book read alone (D30).
 - The reading report says how many files were read at once.
+- When the reading stops (closing Mulu, or changing the pace), files read but not yet indexed are read again next time instead of the reading going on.
 
 ## [0.1.3] - 2026-11-20
 
