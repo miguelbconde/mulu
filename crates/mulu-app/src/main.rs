@@ -478,7 +478,7 @@ fn search(
         all.by_name.extend(answer.by_name.into_iter().map(tag));
     }
     // Stable: files with the same count keep the order each library gave them.
-    all.files.sort_by(|a, b| b.file.count.cmp(&a.file.count));
+    all.files.sort_by_key(|f| std::cmp::Reverse(f.file.count));
     all.elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     Ok(Some(all))
 }
@@ -669,10 +669,10 @@ fn main() {
             // all its files out of the index.
             let config = state.load_config();
             for root in config.roots() {
-                if let Ok(library) = Library::open(&root, &state.store(&root)) {
-                    if let Ok(mut bases) = state.bases.lock() {
-                        bases.push(Arc::new(library));
-                    }
+                if let Ok(library) = Library::open(&root, &state.store(&root))
+                    && let Ok(mut bases) = state.bases.lock()
+                {
+                    bases.push(Arc::new(library));
                 }
             }
             state.remove_stale_stores();
