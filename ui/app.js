@@ -30,6 +30,10 @@ const TEXTS = {
     problemsNote: "These files can still be found by their name.",
     close: "Close",
     copyReport: "Copy a reading report for the developer",
+    faster: "Read faster",
+    fasterNote: "Uses all of the computer's power; other programs may be slow until the reading ends.",
+    slower: "Back to background reading",
+    slowerNote: "Reading at full speed. The computer may be slow until it ends.",
     copied: "Copied. Paste it in your message.",
     finding: "Looking for books in the folder…",
     indexing: (done, total) => `Reading the books: ${n(done)} of ${n(total)}. You can already search what has been read.`,
@@ -102,6 +106,10 @@ const TEXTS = {
     problemsNote: "Esses arquivos ainda podem ser achados pelo nome.",
     close: "Fechar",
     copyReport: "Copiar um relatório da leitura para o desenvolvedor",
+    faster: "Ler mais depressa",
+    fasterNote: "Usa toda a força do computador; outros programas podem ficar lentos até a leitura terminar.",
+    slower: "Voltar à leitura em segundo plano",
+    slowerNote: "Lendo em velocidade máxima. O computador pode ficar lento até terminar.",
     copied: "Copiado. Cole na sua mensagem.",
     finding: "Procurando livros na pasta…",
     indexing: (done, total) => `Lendo os livros: ${n(done)} de ${n(total)}. Já dá para pesquisar no que foi lido.`,
@@ -174,6 +182,10 @@ const TEXTS = {
     problemsNote: "Estos archivos todavía se pueden encontrar por su nombre.",
     close: "Cerrar",
     copyReport: "Copiar un informe de la lectura para el desarrollador",
+    faster: "Leer más rápido",
+    fasterNote: "Usa toda la potencia de la computadora; otros programas pueden ir lentos hasta que termine la lectura.",
+    slower: "Volver a la lectura en segundo plano",
+    slowerNote: "Leyendo a máxima velocidad. La computadora puede ir lenta hasta que termine.",
     copied: "Copiado. Péguelo en su mensaje.",
     finding: "Buscando libros en la carpeta…",
     indexing: (done, total) => `Leyendo los libros: ${n(done)} de ${n(total)}. Ya puede buscar en lo que se ha leído.`,
@@ -317,6 +329,9 @@ async function refreshStatus() {
       $("indexing-bar").max = progress.total;
       $("indexing-bar").value = progress.done;
     }
+    $("pace-button").textContent = status.fast ? T.slower : T.faster;
+    $("pace-note").textContent = status.fast ? T.slowerNote : T.fasterNote;
+    $("pace-button").dataset.fast = String(status.fast);
     if (!polling) polling = setInterval(refreshStatus, 1000);
   } else {
     clearInterval(polling);
@@ -338,6 +353,13 @@ $("choose").addEventListener("click", async () => {
   } finally {
     $("choose").disabled = false;
   }
+});
+
+// Background reading (the default) or full speed (D29).
+$("pace-button").addEventListener("click", async () => {
+  const fast = $("pace-button").dataset.fast !== "true";
+  await call("set_fast", { fast });
+  await refreshStatus();
 });
 
 // ---------------------------------------------------------------- Search

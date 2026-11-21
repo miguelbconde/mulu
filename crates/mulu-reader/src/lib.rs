@@ -74,6 +74,9 @@ pub struct Settings {
     pub time_limit: Duration,
     /// Where the PDF engine's library is (D28); by default, next to the program.
     pub pdfium: Option<PathBuf>,
+    /// Run at low priority, so the computer stays responsive (the default); `false`
+    /// when the user asks for the fastest reading (D29).
+    pub low_priority: bool,
 }
 
 impl Default for Settings {
@@ -82,6 +85,7 @@ impl Default for Settings {
             memory_limit: MEMORY_LIMIT,
             time_limit: TIME_LIMIT,
             pdfium: None,
+            low_priority: true,
         }
     }
 }
@@ -298,7 +302,11 @@ impl Reader {
     }
 
     fn start(&self) -> std::io::Result<Worker> {
-        let mut command = low_priority(&self.program);
+        let mut command = if self.settings.low_priority {
+            low_priority(&self.program)
+        } else {
+            normal_priority(&self.program)
+        };
         command
             .args(self.settings.to_args())
             .stdin(Stdio::piped())
@@ -379,6 +387,19 @@ impl Drop for Reader {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+/// The command for the reading process at normal priority, without a console window.
+fn normal_priority(program: &Path) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
 }
 
 /// The command for the reading process, at low priority so the computer stays

@@ -12,6 +12,7 @@
 use mulu_library::{Answer, FoundFile, Library, Passage, Progress, Report};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -45,6 +46,23 @@ struct App {
     last_run: Arc<Mutex<Option<u64>>>,
     /// The PDF engine's library, shipped with Mulu (D28).
     pdfium: Option<PathBuf>,
+    /// Read as fast as the computer allows, instead of in the background (D29).
+    fast: Arc<AtomicBool>,
+    /// Changes when the pace changes, so that the reading starts again with it.
+    generation: Arc<AtomicU64>,
+}
+
+/// How many files are read at once. In the background (the default), at most half the
+/// processors and three files (D27); at full speed, all processors but one, at most
+/// eight, at normal priority (D29).
+fn reading_processes(fast: bool) -> usize {
+    std::thread::available_parallelism().map_or(1, |n| {
+        if fast {
+            (n.get().saturating_sub(1)).clamp(1, 8)
+        } else {
+            (n.get() / 2).clamp(1, 3)
+        }
+    })
 }
 
 #[derive(Serialize)]
@@ -55,6 +73,7 @@ struct Status {
     files: u64,
     problems: usize,
     last_run: Option<u64>,
+    fast: bool,
 }
 
 type CommandResult<T> = Result<T, String>;
@@ -98,6 +117,8 @@ impl App {
         }
         let progress = Arc::clone(&self.progress);
         let last_run = Arc::clone(&self.last_run);
+        let fast = Arc::clone(&self.fast);
+        let generation = Arc::clone(&self.generation);
         let settings = mulu_reader::Settings {
             pdfium: self.pdfium.clone(),
             ..mulu_reader::Settings::default()
@@ -122,17 +143,26 @@ impl App {
                 set(None);
                 return;
             };
-            // Several files are read at once, but no more than half the processors, so
-            // that the computer stays responsive (0.1.1; 0.1.0 read one file at a time).
-            let workers =
-                std::thread::available_parallelism().map_or(1, |n| (n.get() / 2).clamp(1, 3));
-            let readers = (0..workers)
-                .map(|_| mulu_reader::Reader::new(&program, settings.clone()))
-                .collect();
-            let _ = library.index_pending(readers, |p| {
-                set(Some(p.clone()));
-                true
-            });
+            // The pace can change while the library is read (D29): the reading stops
+            // after the files in hand and starts again with the new pace.
+            loop {
+                let run = generation.load(Ordering::SeqCst);
+                let fast = fast.load(Ordering::SeqCst);
+                let settings = mulu_reader::Settings {
+                    low_priority: !fast,
+                    ..settings.clone()
+                };
+                let readers = (0..reading_processes(fast))
+                    .map(|_| mulu_reader::Reader::new(&program, settings.clone()))
+                    .collect();
+                let _ = library.index_pending(readers, |p| {
+                    set(Some(p.clone()));
+                    generation.load(Ordering::SeqCst) == run
+                });
+                if generation.load(Ordering::SeqCst) == run {
+                    break;
+                }
+            }
             if let Ok(mut slot) = last_run.lock() {
                 *slot = Some(started.elapsed().as_secs());
             }
@@ -167,6 +197,7 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
         files,
         problems,
         last_run: app.last_run.lock().ok().and_then(|t| *t),
+        fast: app.fast.load(Ordering::SeqCst),
     })
 }
 
@@ -217,6 +248,14 @@ fn problems(app: State<'_, App>) -> CommandResult<Vec<FoundFile>> {
     match app.library() {
         Some(library) => library.problems().map_err(text_error),
         None => Ok(Vec::new()),
+    }
+}
+
+/// Reads the library at full speed (`true`) or in the background (`false`) (D29).
+#[tauri::command]
+fn set_fast(app: State<'_, App>, fast: bool) {
+    if app.fast.swap(fast, Ordering::SeqCst) != fast {
+        app.generation.fetch_add(1, Ordering::SeqCst);
     }
 }
 
@@ -320,6 +359,7 @@ fn main() {
             passages,
             problems,
             report,
+            set_fast,
             open_file
         ])
         .run(tauri::generate_context!())

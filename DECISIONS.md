@@ -233,6 +233,12 @@ The catalog now records, for each file, the time spent reading it and adding it 
 - **Components:** pdf_oxide and its 53 components leave; `pdfium-render`, `libloading` (ISC license, now allowed) and `sysinfo` come in. The `ttf-parser` exception in `deny.toml` is gone; `chrono` remains, through pdfium-render.
 - **Not tested yet:** loading the library inside the macOS application on a real Mac (macOS is still experimental).
 
+### D29. PDF memory, and reading at full speed (developer and maintainer)
+
+- **Memory:** the test of 0.1.2 showed 20 books "too large" that 0.1.1 had read. Measured on one of them (a 199-page scan with a text layer, 17 MB): PDFium keeps what it decoded for every page until the document is closed, about 5.5 MB per page, 1.1 GB in all. The reader now closes and reopens the document every 25 pages: 180 MB at most, and 4 s instead of 7 s. The outside memory watch (D28) was right to stop it.
+- **Full speed** (proposed by the maintainer): while a library is being read, a "Read faster" link switches to all processors but one (at most eight) at normal priority; another link goes back to the background pace of D27. The reading stops after the files in hand and continues at the new pace. The choice lasts until Mulu is closed; reading in the background stays the default, so that the computer stays usable.
+- **Still slow:** some scanned books made "searchable" by Adobe's ClearScan take about 50 ms per page with PDFium (31 s for a 552-page book), where pdf_oxide takes 7 s. A second engine for such files was considered (the maintainer asked whether the reader could vary by PDF) and postponed: it would bring back the 53 components of pdf_oxide and its slow path on tagged PDFs (D28), for a gain on a minority of files. It is reconsidered with measurements on a set of real books, together with the files PDFium reports as damaged.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
