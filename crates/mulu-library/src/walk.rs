@@ -59,6 +59,52 @@ pub fn book_files(root: &Path) -> Vec<Found> {
     found
 }
 
+/// The name shown for a file: its own, or the real name of an iCloud placeholder.
+pub fn shown_name(path: &Path) -> String {
+    let raw = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    icloud_real_name(&raw).unwrap_or(&raw).to_owned()
+}
+
+/// Bytes read at each end of a file for its fingerprint.
+const FINGERPRINT_BYTES: u64 = 64 * 1024;
+
+/// A short summary of a file's content: SHA-256 of its size, its first 64 KB and its
+/// last 64 KB. Two files with the same fingerprint are taken to be the same book, so a
+/// book renamed or moved inside the library keeps its place in the index instead of
+/// being read again. `None` if the file cannot be opened, and always for files in the
+/// cloud, which must not be opened (opening them downloads them).
+pub fn fingerprint(path: &Path) -> Option<Vec<u8>> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Read, Seek, SeekFrom};
+    if is_cloud_placeholder(path) {
+        return None;
+    }
+    let mut file = std::fs::File::open(path).ok()?;
+    let size = file.metadata().ok()?.len();
+    let mut hash = Sha256::new();
+    hash.update(size.to_le_bytes());
+    let mut buffer = Vec::new();
+    (&mut file)
+        .take(FINGERPRINT_BYTES)
+        .read_to_end(&mut buffer)
+        .ok()?;
+    hash.update(&buffer);
+    if size > FINGERPRINT_BYTES {
+        buffer.clear();
+        file.seek(SeekFrom::Start(
+            size.saturating_sub(FINGERPRINT_BYTES)
+                .max(FINGERPRINT_BYTES),
+        ))
+        .ok()?;
+        file.take(FINGERPRINT_BYTES).read_to_end(&mut buffer).ok()?;
+        hash.update(&buffer);
+    }
+    Some(hash.finalize().to_vec())
+}
+
 /// For an iCloud placeholder (`.Livro.pdf.icloud`), the real name (`Livro.pdf`).
 pub fn icloud_real_name(name: &str) -> Option<&str> {
     name.strip_prefix('.')?

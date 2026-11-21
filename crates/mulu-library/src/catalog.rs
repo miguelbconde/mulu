@@ -1,7 +1,6 @@
 //! The catalog: one row per book file found, with what happened when it was read.
 
 use crate::Result;
-use crate::walk::Found;
 use mulu_extract::Problem;
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
@@ -35,6 +34,8 @@ pub struct FileEntry {
 /// What happened to one file, written to the catalog.
 pub struct Outcome {
     pub id: u64,
+    /// See [`crate::walk::fingerprint`]; `None` when the file could not be opened.
+    pub fingerprint: Option<Vec<u8>>,
     pub status: Status,
     pub problem: Option<Problem>,
     pub sections: u32,
@@ -81,34 +82,88 @@ impl Catalog {
             }
             db.pragma_update(None, "user_version", 2)?;
         }
+        // Version 3 (Mulu 0.2): a fingerprint of each file read, to recognize a file
+        // that was renamed or moved without reading it again, and the date of the
+        // latest check for changes.
+        if version < 3 {
+            if !has_column(&db, "fingerprint")? {
+                db.execute_batch("ALTER TABLE files ADD COLUMN fingerprint BLOB;")?;
+            }
+            db.execute_batch(
+                "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+            )?;
+            db.pragma_update(None, "user_version", 3)?;
+        }
         Ok(Catalog { db })
     }
 
-    pub fn add_new(&mut self, root: &Path, found: &[Found]) -> Result<()> {
+    /// Every file of the catalog with what is needed to notice a change.
+    pub fn known(&self) -> Result<Vec<Known>> {
+        let mut query = self
+            .db
+            .prepare("SELECT id, relative, size, modified, fingerprint FROM files")?;
+        let rows = query.query_map([], |r| {
+            Ok(Known {
+                id: u64::try_from(r.get::<_, i64>(0)?).unwrap_or(0),
+                relative: r.get(1)?,
+                size: u64::try_from(r.get::<_, i64>(2)?).unwrap_or(0),
+                modified: r.get(3)?,
+                fingerprint: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    /// Writes the changes found by a check, all at once: either all of them are
+    /// recorded or none is.
+    pub fn apply(&mut self, changes: &Plan) -> Result<()> {
         let tx = self.db.transaction()?;
         {
+            let mut moved = tx.prepare(
+                "UPDATE files SET relative = ?2, name = ?3, modified = ?4 WHERE id = ?1",
+            )?;
+            for m in &changes.moved {
+                moved.execute(params![to_i64(m.id), m.relative, m.name, m.modified])?;
+            }
+            let mut changed = tx.prepare(
+                "UPDATE files SET size = ?2, modified = ?3, status = 'pending', problem = NULL,
+                 sections = 0, fingerprint = NULL WHERE id = ?1",
+            )?;
+            for c in &changes.changed {
+                changed.execute(params![to_i64(c.id), to_i64(c.size), c.modified])?;
+            }
+            let mut removed = tx.prepare("DELETE FROM files WHERE id = ?1")?;
+            for id in &changes.removed {
+                removed.execute([to_i64(*id)])?;
+            }
             let mut insert = tx.prepare(
                 "INSERT OR IGNORE INTO files (relative, name, size, modified) VALUES (?1, ?2, ?3, ?4)",
             )?;
-            for file in found {
-                let relative = file.path.strip_prefix(root).unwrap_or(&file.path);
-                let raw = file
-                    .path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default();
-                let name = crate::walk::icloud_real_name(&raw)
-                    .unwrap_or(&raw)
-                    .to_owned();
-                insert.execute(params![
-                    relative.to_string_lossy(),
-                    name,
-                    i64::try_from(file.size).unwrap_or(i64::MAX),
-                    file.modified
-                ])?;
+            for n in &changes.added {
+                insert.execute(params![n.relative, n.name, to_i64(n.size), n.modified])?;
             }
         }
         tx.commit()?;
+        Ok(())
+    }
+
+    /// When the library was last checked for changes, in seconds since 1970.
+    pub fn checked(&self) -> Result<Option<i64>> {
+        let value: Option<String> = self
+            .db
+            .query_row("SELECT value FROM meta WHERE key = 'checked'", [], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        Ok(value.and_then(|v| v.parse().ok()))
+    }
+
+    pub fn set_checked(&mut self, seconds: i64) -> Result<()> {
+        self.db.execute(
+            "INSERT INTO meta (key, value) VALUES ('checked', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [seconds.to_string()],
+        )?;
         Ok(())
     }
 
@@ -205,7 +260,8 @@ impl Catalog {
         let tx = self.db.transaction()?;
         {
             let mut update = tx.prepare(
-                "UPDATE files SET status = ?2, problem = ?3, sections = ?4, read_ms = ?5, index_ms = ?6 WHERE id = ?1",
+                "UPDATE files SET status = ?2, problem = ?3, sections = ?4, read_ms = ?5, index_ms = ?6,
+                 fingerprint = ?7 WHERE id = ?1",
             )?;
             for o in outcomes {
                 let problem = o
@@ -218,13 +274,65 @@ impl Catalog {
                     problem,
                     o.sections,
                     i64::try_from(o.read_ms).unwrap_or(i64::MAX),
-                    i64::try_from(o.index_ms).unwrap_or(i64::MAX)
+                    i64::try_from(o.index_ms).unwrap_or(i64::MAX),
+                    o.fingerprint
                 ])?;
             }
         }
         tx.commit()?;
         Ok(())
     }
+}
+
+/// A file of the catalog, as needed to notice a change.
+pub struct Known {
+    pub id: u64,
+    pub relative: String,
+    pub size: u64,
+    pub modified: i64,
+    pub fingerprint: Option<Vec<u8>>,
+}
+
+/// A file new to the catalog, or the new place of a file that moved.
+pub struct NewFile {
+    pub relative: String,
+    pub name: String,
+    pub size: u64,
+    pub modified: i64,
+}
+
+pub struct Moved {
+    pub id: u64,
+    pub relative: String,
+    pub name: String,
+    pub modified: i64,
+}
+
+pub struct Changed {
+    pub id: u64,
+    pub size: u64,
+    pub modified: i64,
+}
+
+/// What a check for changes found, to be written by [`Catalog::apply`].
+#[derive(Default)]
+pub struct Plan {
+    pub added: Vec<NewFile>,
+    pub changed: Vec<Changed>,
+    pub moved: Vec<Moved>,
+    pub removed: Vec<u64>,
+}
+
+fn to_i64(n: u64) -> i64 {
+    i64::try_from(n).unwrap_or(i64::MAX)
+}
+
+fn has_column(db: &Connection, column: &str) -> Result<bool> {
+    let columns: Vec<String> = db
+        .prepare("SELECT name FROM pragma_table_info('files')")?
+        .query_map([], |r| r.get(0))?
+        .collect::<std::result::Result<_, _>>()?;
+    Ok(columns.iter().any(|c| c == column))
 }
 
 fn row_to_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<FileEntry> {

@@ -3,7 +3,10 @@
 //! One library: a folder of books chosen by the user, its catalog (a SQLite file listing
 //! every book file found and what happened when it was read) and its search index.
 //!
-//! - [`Library::scan`] walks the folder and records the book files, without reading them.
+//! - [`Library::refresh`] walks the folder and compares it with the catalog: new and
+//!   changed files are left to read, renamed or moved files keep their text in the index
+//!   (recognized by a fingerprint of their content), and files no longer there leave the
+//!   index (D16, D31). Nothing in the folder is touched.
 //! - [`Library::index_pending`] reads the files not yet read, one by one, in the
 //!   separate reading process (D25), and adds their text to the index. Searches work
 //!   while it runs: the index is saved every few files.
@@ -19,13 +22,13 @@ mod catalog;
 mod names;
 mod walk;
 
-use catalog::{Catalog, Outcome};
+use catalog::{Catalog, Changed, Moved, NewFile, Outcome, Plan};
 pub use catalog::{FileEntry, Status};
 use mulu_extract::{Place, Problem};
 use mulu_index::{FileResult, LibraryIndex, Page, Results};
 use mulu_reader::Reader;
 use serde::Serialize;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
@@ -35,6 +38,7 @@ use std::time::{Duration, Instant};
 /// A file read by a reading process, on its way to the index.
 struct Read {
     entry: FileEntry,
+    fingerprint: Option<Vec<u8>>,
     outcome: std::result::Result<mulu_extract::Document, Problem>,
     read_ms: u64,
 }
@@ -117,6 +121,27 @@ pub struct SlowFile {
     pub problem: Option<Problem>,
 }
 
+/// What a check for changes found (D16).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct Changes {
+    /// Files new to the library, to read.
+    pub added: u64,
+    /// Files whose size or date changed, to read again.
+    pub changed: u64,
+    /// Files renamed or moved inside the library: their text stays in the index.
+    pub moved: u64,
+    /// Files no longer in the folder, taken out of the index (never deleted).
+    pub removed: u64,
+}
+
+/// A folder of the library with the number of book files in it and below it, for the
+/// scope tree (D16). `path` uses `/` on every system; the top folder is not listed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Folder {
+    pub path: String,
+    pub files: u64,
+}
+
 /// One passage around an occurrence.
 #[derive(Debug, Clone, Serialize)]
 pub struct Passage {
@@ -153,13 +178,122 @@ impl Library {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Finds the book files of the library folder and records the new ones. Files no
-    /// longer present are left for version 0.2 (incremental updates).
-    pub fn scan(&self) -> Result<u64> {
+    /// Compares the library folder with the catalog and records what changed (D16, D31):
+    /// - a path not in the catalog is a new file, unless its fingerprint is that of a
+    ///   file that disappeared with the same size: then it is that file, renamed or
+    ///   moved, and keeps its text in the index;
+    /// - a path whose size or modification date changed is read again;
+    /// - a file that disappeared leaves the index and the catalog.
+    ///
+    /// Must not run while [`Library::index_pending`] runs (both write the index).
+    pub fn refresh(&self) -> Result<Changes> {
         let found = walk::book_files(&self.root);
+        let known = self.catalog().known()?;
+        let mut plan = Plan::default();
+
+        let mut by_path: HashMap<String, &catalog::Known> =
+            known.iter().map(|k| (k.relative.clone(), k)).collect();
+        let mut fresh: Vec<&walk::Found> = Vec::new();
+        for file in &found {
+            let relative = self.relative(&file.path);
+            match by_path.remove(&relative) {
+                Some(k) if k.size == file.size && k.modified == file.modified => {}
+                Some(k) => plan.changed.push(Changed {
+                    id: k.id,
+                    size: file.size,
+                    modified: file.modified,
+                }),
+                None => fresh.push(file),
+            }
+        }
+        // What is left in `by_path` disappeared. Some of it may have moved: the
+        // candidates are the vanished files with a fingerprint, grouped by size.
+        let mut vanished: HashMap<u64, Vec<&catalog::Known>> = HashMap::new();
+        for k in by_path.values() {
+            if k.fingerprint.is_some() {
+                vanished.entry(k.size).or_default().push(k);
+            }
+        }
+        let mut gone: std::collections::HashSet<u64> = by_path.values().map(|k| k.id).collect();
+        for file in fresh {
+            let relative = self.relative(&file.path);
+            let name = walk::shown_name(&file.path);
+            let same_size = vanished.get_mut(&file.size).filter(|v| !v.is_empty());
+            let matched = same_size.and_then(|candidates| {
+                let print = walk::fingerprint(&file.path)?;
+                let at = candidates
+                    .iter()
+                    .position(|k| k.fingerprint.as_deref() == Some(print.as_slice()))?;
+                Some(candidates.swap_remove(at))
+            });
+            if let Some(k) = matched {
+                gone.remove(&k.id);
+                plan.moved.push(Moved {
+                    id: k.id,
+                    relative,
+                    name,
+                    modified: file.modified,
+                });
+            } else {
+                plan.added.push(NewFile {
+                    relative,
+                    name,
+                    size: file.size,
+                    modified: file.modified,
+                });
+            }
+        }
+        plan.removed = gone.into_iter().collect();
+        plan.removed.sort_unstable();
+
+        // The index first: if Mulu stops in between, a removed file is only a catalog
+        // row without text, and the next check removes it again.
+        if !plan.removed.is_empty() || !plan.changed.is_empty() {
+            let mut writer = self.index.writer(WRITER_MEMORY_MB)?;
+            for id in &plan.removed {
+                writer.remove_file(*id);
+            }
+            writer.commit()?;
+            self.index.refresh()?;
+        }
         let mut catalog = self.catalog();
-        catalog.add_new(&self.root, &found)?;
-        catalog.count()
+        catalog.apply(&plan)?;
+        catalog.set_checked(now())?;
+        drop(catalog);
+        let n = |v: usize| u64::try_from(v).unwrap_or(u64::MAX);
+        let changes = Changes {
+            added: n(plan.added.len()),
+            changed: n(plan.changed.len()),
+            moved: n(plan.moved.len()),
+            removed: n(plan.removed.len()),
+        };
+        if changes != Changes::default() {
+            // The latest search may name files that moved or left.
+            *self
+                .last
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+        Ok(changes)
+    }
+
+    /// Kept for the first reading: the same as [`Library::refresh`], returning the
+    /// number of files in the catalog.
+    pub fn scan(&self) -> Result<u64> {
+        self.refresh()?;
+        self.catalog().count()
+    }
+
+    /// When the library was last checked for changes, in seconds since 1970.
+    pub fn checked(&self) -> Result<Option<i64>> {
+        self.catalog().checked()
+    }
+
+    fn relative(&self, path: &Path) -> String {
+        path.strip_prefix(&self.root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned()
     }
 
     pub fn progress(&self) -> Result<Progress> {
@@ -210,15 +344,16 @@ impl Library {
                     };
                     let path = root.join(&entry.relative);
                     let start = Instant::now();
-                    let outcome = if walk::is_cloud_placeholder(&path) {
-                        Err(Problem::InCloud)
+                    let (outcome, fingerprint) = if walk::is_cloud_placeholder(&path) {
+                        (Err(Problem::InCloud), None)
                     } else {
-                        reader.read(&path)
+                        (reader.read(&path), walk::fingerprint(&path))
                     };
                     let read_ms = millis(start.elapsed());
                     if sender
                         .send(Read {
                             entry,
+                            fingerprint,
                             outcome,
                             read_ms,
                         })
@@ -236,6 +371,7 @@ impl Library {
         let mut unsaved: Vec<Outcome> = Vec::new();
         for Read {
             entry,
+            fingerprint,
             outcome,
             read_ms,
         } in outcomes
@@ -259,6 +395,7 @@ impl Library {
             };
             unsaved.push(Outcome {
                 id: entry.id,
+                fingerprint,
                 status,
                 problem,
                 sections,
@@ -308,6 +445,33 @@ impl Library {
 
     /// Runs a search: files whose text contains it, then files whose name does.
     pub fn search(&self, query: &str) -> Result<Answer> {
+        self.search_in(query, &[])
+    }
+
+    /// The folders of the library that hold book files, with their counts.
+    pub fn folders(&self) -> Result<Vec<Folder>> {
+        let mut counts: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+        for entry in self.catalog().all()? {
+            let key = folder_key(&entry.relative);
+            let mut at = key.as_str();
+            while !at.is_empty() {
+                *counts.entry(at.to_owned()).or_default() += 1;
+                at = at.rfind('/').map_or("", |i| &at[..i]);
+            }
+        }
+        Ok(counts
+            .into_iter()
+            .map(|(path, files)| Folder { path, files })
+            .collect())
+    }
+
+    /// Runs a search leaving out the files directly in the `excluded` folders (paths as
+    /// given by [`Library::folders`]; `""` is the top folder). Subfolders are not
+    /// excluded with their parent: the window sends every unticked folder, so that a
+    /// folder can be left out while one of its subfolders stays in. The index stays
+    /// whole: changing the scope only filters the answer, so it is instant
+    /// (instructions, section 2).
+    pub fn search_in(&self, query: &str, excluded: &[String]) -> Result<Answer> {
         let start = Instant::now();
         let results = self.index.search(query)?;
         let catalog = self.catalog();
@@ -335,7 +499,17 @@ impl Library {
                 .collect()
         };
         drop(catalog);
-        let total = results.total();
+        let excluded: std::collections::HashSet<&str> =
+            excluded.iter().map(String::as_str).collect();
+        let outside = |f: &FoundFile| excluded.contains(folder_key(&f.path).as_str());
+        let (files, by_name, total) = if excluded.is_empty() {
+            (files, by_name, results.total())
+        } else {
+            let files: Vec<FoundFile> = files.into_iter().filter(|f| !outside(f)).collect();
+            let by_name = by_name.into_iter().filter(|f| !outside(f)).collect();
+            let total = files.iter().map(|f| u64::from(f.count)).sum();
+            (files, by_name, total)
+        };
         *self
             .last
             .lock()
@@ -409,6 +583,27 @@ impl Library {
             .get(file_id)?
             .map(|e| self.root.join(e.relative)))
     }
+}
+
+/// The folder of a file, relative to the library folder, with `/` between parts. (On
+/// Linux and macOS a `\` can be part of a name, so only Windows paths are converted.)
+fn folder_key(relative: &str) -> String {
+    let relative = if std::path::MAIN_SEPARATOR == '\\' {
+        relative.replace('\\', "/")
+    } else {
+        relative.to_owned()
+    };
+    relative
+        .rfind('/')
+        .map_or_else(String::new, |i| relative[..i].to_owned())
+}
+
+fn now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|d| i64::try_from(d.as_secs()).ok())
+        .unwrap_or(0)
 }
 
 fn found(entry: &FileEntry, count: u32) -> FoundFile {
