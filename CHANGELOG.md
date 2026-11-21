@@ -4,6 +4,10 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- Release 0.2.0 was built but not published: its release notes file was missing. The checks of every proposal now fail when the version has no release notes or test script.
+
 ## [0.2.0] - 2026-11-21
 
 Test script: `docs/testing/v0.2.0.md`.

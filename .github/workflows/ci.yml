@@ -33,6 +33,17 @@ jobs:
         with:
           persist-credentials: false
       # The compiler version comes from rust-toolchain.toml.
+      # The release workflow publishes a version with docs/releases/vX.Y.Z.md as its
+      # notes; a missing file only fails after merging, when the installers are
+      # already built. Check it here, in the proposal.
+      - name: Release notes for the version
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' crates/mulu-app/Cargo.toml | head -1)
+          test -s "docs/releases/v${version}.md" || { echo "::error::docs/releases/v${version}.md is missing"; exit 1; }
+          test -s "docs/testing/v${version}.md" || { echo "::error::docs/testing/v${version}.md is missing"; exit 1; }
+
       - name: Install the pinned Rust toolchain
         run: rustup toolchain install
       # The desktop window uses the system web view; Linux needs its development files.
