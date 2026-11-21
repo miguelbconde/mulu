@@ -294,6 +294,21 @@ Version 0.2.1 completes section 1 of the instructions.
 - **Measured:** none on Windows yet. The survey is the same walk as a check (D31: 0.24 s for 100,000 files on Linux, warm disk cache); a first walk of a whole disk on Windows can take much longer, which the window shows as "Counting the books…".
 - **Tests:** overlap rules, survey counts, formats and folders left out and let in again, a missing library folder; end to end on Linux under Xvfb: two libraries searched together, scope per library, taking a library out, settings from 0.2.0, a missing folder, the welcome screen, "whole computer" with a folder and a place left out.
 
+### D35. Research projects (maintainer)
+
+Decided by the maintainer on 2026-11-21 (addendum 3, part B), with the note option (A). A **project** is a working folder inside Mulu, with subtopics in a tree, gathering three kinds of items without touching any file of the libraries:
+
+- **books:** references to library files, which follow a book renamed or moved (D31 fingerprints); the same book can be in several projects and subtopics;
+- **saved searches:** a query with its signs and scope, run again when the project opens, saying what is new since it was saved ("12 new occurrences since 21/11");
+- **passages:** occurrences chosen from the results, frozen with their text, book, page or chapter and date, kept even if the book changes or leaves the library;
+- each item can carry a short **note** by the researcher, exported with it.
+
+A project can be a search scope, exported (or one subtopic) as a reading-notes document in the formats of 0.3.0, and saved to a single file to back it up or open it on another computer. Deleting a project, subtopic or item goes to Mulu's own bin, from which it can be restored. No new third-party component.
+
+- **Storage:** projects span libraries, so they live in one database of their own in Mulu's data folder, referring to books by library and catalog id.
+- **Compared with (public pages, 2026-11-21, not measured):** AnyTXT Searcher offers nothing alike in the sources consulted. Zotero has nested collections, items in several collections, saved searches (not nestable, no manual items) and reader annotations, but works on its own reference library, into which books must be brought, and does not gather lists of occurrences of a term across books. Mulu builds projects on the library as it already is, from full-text search results with pages.
+- **Release:** 0.3 in two parts: 0.3.0 reading notes (fichamento), 0.3.1 research projects.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
