@@ -4,6 +4,20 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-21
+
+Test script: `docs/testing/v0.1.4.md`.
+
+### Fixed
+
+- Very long books (complete works of thousands of pages) were stopped after two minutes even while they advanced. A file is now stopped only when it reads no new page for two minutes, or after 30 minutes in all (D30).
+
+### Changed
+
+- "Read faster" reads one file per physical processor core: the extra logical processors only made each file slower (D30).
+- The largest files are read first, so that the reading does not end with one long book read alone (D30).
+- The reading report says how many files were read at once.
+
 ## [0.1.3] - 2026-11-20
 
 Test script: `docs/testing/v0.1.3.md`.

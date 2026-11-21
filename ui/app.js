@@ -531,6 +531,7 @@ $("copy-report").addEventListener("click", async () => {
   lines.push(`Mulu ${$("version").textContent} — ${navigator.userAgent}`);
   lines.push(`Files: ${report.files}; read with text: ${report.indexed}; could not be read: ${files.length}; ${Math.round(report.megabytes)} MB`);
   if (status.last_run !== null && status.last_run !== undefined) lines.push(`Last reading: ${status.last_run} s`);
+  lines.push(`Processors: ${report.processors} (cores: ${report.cores ?? "?"}); files read at once: ${report.background} in the background, ${report.full_speed} at full speed (${report.full_speed_used ? "used" : "not used"})`);
   lines.push(`Time in the reading processes: ${Math.round(report.read_ms / 1000)} s; adding to the index: ${Math.round(report.index_ms / 1000)} s`);
   const counts = new Map();
   for (const file of files) {

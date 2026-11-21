@@ -183,3 +183,22 @@ fn walk(root: &Path) -> Vec<PathBuf> {
     }
     out
 }
+
+#[test]
+fn the_largest_files_are_read_first() {
+    let folder = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    for (name, size) in [("a.txt", 10), ("b.txt", 3000), ("c.txt", 200)] {
+        std::fs::write(folder.path().join(name), "palavra ".repeat(size)).unwrap();
+    }
+    let library = Library::open(folder.path(), store.path()).unwrap();
+    library.scan().unwrap();
+    let mut order = Vec::new();
+    library
+        .index_pending(vec![reader()], |p| {
+            order.extend(p.current.clone());
+            true
+        })
+        .unwrap();
+    assert_eq!(order, ["b.txt", "c.txt", "a.txt"]);
+}

@@ -28,6 +28,11 @@ fn main() {
                 &worker,
                 mulu_reader::Settings {
                     pdfium: std::env::var_os("MULU_PDFIUM").map(Into::into),
+                    // Optional third argument: the time limit without progress, in seconds.
+                    time_limit: std::env::args()
+                        .nth(3)
+                        .and_then(|s| s.parse().ok())
+                        .map_or(mulu_reader::TIME_LIMIT, std::time::Duration::from_secs_f64),
                     ..mulu_reader::Settings::default()
                 },
             )
@@ -53,5 +58,9 @@ fn main() {
     for (t, name) in slow.iter().take(15) {
         println!("{t:>10.2?}  {name}");
     }
-    println!("problems: {}", library.problems().unwrap().len());
+    let problems = library.problems().unwrap();
+    println!("problems: {}", problems.len());
+    for p in problems.iter().take(20) {
+        println!("  {} {:?}", p.path, p.problem);
+    }
 }

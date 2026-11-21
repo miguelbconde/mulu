@@ -6,9 +6,10 @@
 //! and sends back its text; Mulu stays responsive whatever happens there (decision D25).
 //!
 //! Protections:
-//! - **Time:** if a file takes longer than the time limit, the reading process is
-//!   stopped and a new one is started for the next file. The reading process also stops
-//!   itself if it is still busy well after the limit, so that it never outlives Mulu.
+//! - **Time:** if a file stops advancing (no new page) for longer than the time limit,
+//!   or takes longer than [`MAX_TIME`] in all, the reading process is stopped and a new
+//!   one is started for the next file (D30). The reading process also stops itself if
+//!   it is still busy well after either limit, so that it never outlives Mulu.
 //! - **Memory:** every allocation of the reading process is counted; past its allowance
 //!   the allocation is refused and the process ends, reported as "too large". This works
 //!   the same on Windows, macOS and Linux, unlike the systems' own limits (macOS does
@@ -43,8 +44,22 @@ pub const MEMORY_LIMIT: usize = 1024 * 1024 * 1024;
 /// How often Mulu checks the time and the memory of a reading process at work.
 const WATCH_EVERY: Duration = Duration::from_millis(100);
 
-/// Default time limit for one file.
+/// Default time limit for one file without any progress (a new page read).
 pub const TIME_LIMIT: Duration = Duration::from_secs(120);
+
+/// The longest a single file may take, even while it advances (D30): an encyclopedia
+/// of many thousands of pages takes a few minutes.
+pub const MAX_TIME: Duration = Duration::from_secs(30 * 60);
+
+/// How often the reading process reports its progress.
+const PROGRESS_EVERY: Duration = Duration::from_secs(1);
+
+/// The number of physical processor cores, when the system tells it. Logical
+/// processors beyond it (two per core on many PCs) did not make PDF reading faster in
+/// the maintainer's test: each file just took twice as long (D30).
+pub fn physical_cores() -> Option<usize> {
+    sysinfo::System::physical_core_count().ok()
+}
 
 /// The allocator that enforces the memory allowance; install it in the program's `main`
 /// file: `#[global_allocator] static ALLOCATOR: MemoryCap = mulu_reader::memory_cap();`
@@ -65,6 +80,8 @@ struct Request {
 enum Response {
     Document(Document),
     Problem(Problem),
+    /// The file being read has advanced (sent at most every [`PROGRESS_EVERY`]).
+    Progress,
 }
 
 /// Settings of a reading process, passed to it on its command line.
@@ -136,20 +153,48 @@ pub fn serve(allocator: &MemoryCap, settings: Settings) {
         mulu_extract::set_pdfium_library(pdfium);
     }
 
-    // Watchdog: a file still being read long after the limit means Mulu is gone or
-    // could not stop this process; stop it here.
+    // Times in milliseconds since `start`; 0 while idle.
     let busy_since = Arc::new(AtomicU64::new(0));
+    let advanced_at = Arc::new(AtomicU64::new(0));
     let start = Instant::now();
+    let now = move || {
+        u64::try_from(start.elapsed().as_millis())
+            .unwrap_or(u64::MAX)
+            .max(1)
+    };
+    let stdout = Arc::new(Mutex::new(std::io::stdout()));
+
+    // Progress, and the watchdog: a file still being read well after a limit means Mulu
+    // is gone or could not stop this process; stop it here.
     {
         let busy_since = Arc::clone(&busy_since);
-        let grace = settings.time_limit + Duration::from_secs(10);
+        let advanced_at = Arc::clone(&advanced_at);
+        let stdout = Arc::clone(&stdout);
+        let grace = Duration::from_secs(10);
+        let stalled = u64::try_from((settings.time_limit + grace).as_millis()).unwrap_or(u64::MAX);
+        let longest = u64::try_from((MAX_TIME + grace).as_millis()).unwrap_or(u64::MAX);
         thread::spawn(move || {
+            let mut seen = mulu_extract::progress();
             loop {
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(PROGRESS_EVERY.min(Duration::from_millis(500)));
                 let since = busy_since.load(Ordering::Relaxed);
-                if since != 0
-                    && start.elapsed().saturating_sub(Duration::from_millis(since)) > grace
-                {
+                if since == 0 {
+                    seen = mulu_extract::progress();
+                    continue;
+                }
+                let t = now();
+                let pages = mulu_extract::progress();
+                if pages != seen {
+                    seen = pages;
+                    advanced_at.store(t, Ordering::Relaxed);
+                    if let Ok(text) = serde_json::to_string(&Response::Progress)
+                        && let Ok(mut out) = stdout.lock()
+                    {
+                        let _ = writeln!(out, "{text}").and_then(|()| out.flush());
+                    }
+                }
+                let last = advanced_at.load(Ordering::Relaxed).max(since);
+                if t.saturating_sub(last) > stalled || t.saturating_sub(since) > longest {
                     std::process::exit(70);
                 }
             }
@@ -158,15 +203,11 @@ pub fn serve(allocator: &MemoryCap, settings: Settings) {
 
     let limits = Limits::default();
     let stdin = std::io::stdin().lock();
-    let mut stdout = std::io::stdout().lock();
     for line in stdin.lines() {
         let Ok(line) = line else { break };
         let response = match serde_json::from_str::<Request>(&line) {
             Ok(request) => {
-                let now = u64::try_from(start.elapsed().as_millis())
-                    .unwrap_or(u64::MAX)
-                    .max(1);
-                busy_since.store(now, Ordering::Relaxed);
+                busy_since.store(now(), Ordering::Relaxed);
                 let result = mulu_extract::extract(&request.path, &limits);
                 busy_since.store(0, Ordering::Relaxed);
                 match result {
@@ -179,10 +220,8 @@ pub fn serve(allocator: &MemoryCap, settings: Settings) {
         let Ok(text) = serde_json::to_string(&response) else {
             break;
         };
-        if writeln!(stdout, "{text}")
-            .and_then(|()| stdout.flush())
-            .is_err()
-        {
+        let Ok(mut out) = stdout.lock() else { break };
+        if writeln!(out, "{text}").and_then(|()| out.flush()).is_err() {
             break;
         }
     }
@@ -236,6 +275,7 @@ impl Reader {
         let time_limit = self.settings.time_limit;
         let memory_limit = u64::try_from(self.settings.memory_limit).unwrap_or(u64::MAX);
         let started = Instant::now();
+        let mut advanced = started;
         let worker = self.worker.as_mut().ok_or(Problem::ReaderStopped)?;
         let pid = sysinfo::Pid::from_u32(worker.child.id());
         // If the system cannot be asked (very rare), the allocation count still applies.
@@ -244,6 +284,10 @@ impl Reader {
             match worker.answers.recv_timeout(WATCH_EVERY) {
                 Ok(line) => {
                     return match serde_json::from_str::<Response>(&line) {
+                        Ok(Response::Progress) => {
+                            advanced = Instant::now();
+                            continue;
+                        }
                         Ok(Response::Document(document)) => Ok(document),
                         Ok(Response::Problem(problem)) => Err(problem),
                         Err(_) => {
@@ -253,7 +297,7 @@ impl Reader {
                     };
                 }
                 Err(RecvTimeoutError::Timeout) => {
-                    if started.elapsed() >= time_limit {
+                    if advanced.elapsed() >= time_limit || started.elapsed() >= MAX_TIME {
                         self.stop();
                         return Err(Problem::TimedOut);
                     }

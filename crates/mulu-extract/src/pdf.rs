@@ -101,6 +101,7 @@ fn read_inner(bytes: &[u8]) -> Result<Document, Problem> {
         let document = open()?;
         let end = start.saturating_add(PAGES_PER_OPENING).min(count);
         for index in start..end {
+            crate::advance();
             let Ok(page) = document.pages().get(index) else {
                 sections.push(Section {
                     place: Place::Page {
