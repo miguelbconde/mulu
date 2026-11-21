@@ -9,7 +9,7 @@
 // On Windows, do not open a console window next to the application.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use mulu_library::{Answer, FoundFile, Library, Passage, Progress, Report};
+use mulu_library::{Answer, Changes, Folder, FoundFile, Library, Passage, Progress, Report};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -52,6 +52,10 @@ struct App {
     generation: Arc<AtomicU64>,
     /// Whether the full speed was used during the current or last reading.
     fast_used: Arc<AtomicBool>,
+    /// A check for changes, and the reading after it, is running (only one at a time).
+    busy: Arc<AtomicBool>,
+    /// What the latest check for changes found (D16).
+    changes: Arc<Mutex<Option<Changes>>>,
 }
 
 /// How many files are read at once. In the background (the default), at most half the
@@ -77,6 +81,9 @@ struct Status {
     problems: usize,
     last_run: Option<u64>,
     fast: bool,
+    /// When the library was last checked for changes, in seconds since 1970.
+    checked: Option<i64>,
+    changes: Option<Changes>,
 }
 
 type CommandResult<T> = Result<T, String>;
@@ -107,8 +114,7 @@ impl App {
         std::fs::write(self.config_path(), text)
     }
 
-    /// Opens the library of `root` and starts finding and reading its files in the
-    /// background. Searches work while it runs.
+    /// Opens the library of `root` and checks it for changes, in the background.
     fn start(&self, root: &Path) -> Result<(), String> {
         // Each library folder has its own catalog and index.
         let store = self
@@ -118,36 +124,61 @@ impl App {
         if let Ok(mut slot) = self.library.lock() {
             *slot = Some(Arc::clone(&library));
         }
+        self.run(library);
+        Ok(())
+    }
+
+    /// Checks the library for changes and reads what is new or changed, in the
+    /// background (D16, D31). Searches work while it runs. Returns `false`, doing
+    /// nothing, if a check is already running.
+    fn run(&self, library: Arc<Library>) -> bool {
+        if self
+            .busy
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return false;
+        }
         let progress = Arc::clone(&self.progress);
         let last_run = Arc::clone(&self.last_run);
         let fast = Arc::clone(&self.fast);
         let generation = Arc::clone(&self.generation);
         let fast_used = Arc::clone(&self.fast_used);
+        let busy = Arc::clone(&self.busy);
+        let changes = Arc::clone(&self.changes);
         fast_used.store(self.fast.load(Ordering::SeqCst), Ordering::SeqCst);
         let settings = mulu_reader::Settings {
             pdfium: self.pdfium.clone(),
             ..mulu_reader::Settings::default()
         };
+        let set = move |p: Option<Progress>| {
+            if let Ok(mut slot) = progress.lock() {
+                *slot = p;
+            }
+        };
+        set(Some(Progress {
+            done: 0,
+            total: 0,
+            current: None,
+        }));
         std::thread::spawn(move || {
             let started = std::time::Instant::now();
-            let set = |p: Option<Progress>| {
-                if let Ok(mut slot) = progress.lock() {
-                    *slot = p;
-                }
-            };
-            set(Some(Progress {
-                done: 0,
-                total: 0,
-                current: None,
-            }));
-            if library.scan().is_err() {
+            let finish = |set: &dyn Fn(Option<Progress>)| {
                 set(None);
-                return;
+                busy.store(false, Ordering::SeqCst);
+            };
+            match library.refresh() {
+                Ok(found) => {
+                    if let Ok(mut slot) = changes.lock() {
+                        *slot = Some(found);
+                    }
+                }
+                Err(_) => return finish(&set),
             }
             let Ok(program) = std::env::current_exe() else {
-                set(None);
-                return;
+                return finish(&set);
             };
+            let mut read_any = false;
             // The pace can change while the library is read (D29): the reading stops
             // after the files in hand and starts again with the new pace.
             loop {
@@ -164,6 +195,7 @@ impl App {
                     .map(|_| mulu_reader::Reader::new(&program, settings.clone()))
                     .collect();
                 let _ = library.index_pending(readers, |p| {
+                    read_any |= p.current.is_some();
                     set(Some(p.clone()));
                     generation.load(Ordering::SeqCst) == run
                 });
@@ -171,12 +203,14 @@ impl App {
                     break;
                 }
             }
-            if let Ok(mut slot) = last_run.lock() {
+            // The reading time of the report is that of a reading, not of a check
+            // that found nothing to read.
+            if read_any && let Ok(mut slot) = last_run.lock() {
                 *slot = Some(started.elapsed().as_secs());
             }
-            set(None);
+            finish(&set);
         });
-        Ok(())
+        true
     }
 }
 
@@ -199,6 +233,10 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
         ),
         None => (0, 0),
     };
+    let checked = match &library {
+        Some(l) => l.checked().map_err(text_error)?,
+        None => None,
+    };
     Ok(Status {
         library: library.map(|l| l.root().display().to_string()),
         progress: app.progress.lock().ok().and_then(|p| p.clone()),
@@ -206,6 +244,8 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
         problems,
         last_run: app.last_run.lock().ok().and_then(|t| *t),
         fast: app.fast.load(Ordering::SeqCst),
+        checked,
+        changes: app.changes.lock().ok().and_then(|c| c.clone()),
     })
 }
 
@@ -227,12 +267,37 @@ async fn choose_folder(
     Ok(Some(root.display().to_string()))
 }
 
+/// Searches the library, leaving out the files directly in the `excluded` folders
+/// (the folders unticked in the scope tree).
 #[tauri::command]
-fn search(app: State<'_, App>, query: String) -> CommandResult<Option<Answer>> {
+fn search(
+    app: State<'_, App>,
+    query: String,
+    excluded: Option<Vec<String>>,
+) -> CommandResult<Option<Answer>> {
     match app.library() {
-        Some(library) => library.search(&query).map(Some).map_err(text_error),
+        Some(library) => library
+            .search_in(&query, &excluded.unwrap_or_default())
+            .map(Some)
+            .map_err(text_error),
         None => Ok(None),
     }
+}
+
+/// The folders of the library with book files, for the scope tree.
+#[tauri::command]
+fn folders(app: State<'_, App>) -> CommandResult<Vec<Folder>> {
+    match app.library() {
+        Some(library) => library.folders().map_err(text_error),
+        None => Ok(Vec::new()),
+    }
+}
+
+/// The refresh button: checks the library for changes now (D16). `false` if a check
+/// or a reading is already running.
+#[tauri::command]
+fn refresh(app: State<'_, App>) -> bool {
+    app.library().is_some_and(|library| app.run(library))
 }
 
 #[tauri::command]
@@ -383,6 +448,8 @@ fn main() {
             status,
             choose_folder,
             search,
+            folders,
+            refresh,
             passages,
             problems,
             report,

@@ -10,6 +10,25 @@
 const TEXTS = {
   en: {
     searchLabel: "Search the library",
+    basesTitle: "Libraries",
+    refresh: "Check for changes",
+    checking: "Checking for changes…",
+    checked: (when) => `Checked on ${when}`,
+    neverChecked: "Not checked yet",
+    noChanges: "No changes since the last check.",
+    changes: (c) => {
+      const parts = [];
+      if (c.added) parts.push(`${n(c.added)} new`);
+      if (c.changed) parts.push(`${n(c.changed)} changed`);
+      if (c.moved) parts.push(`${n(c.moved)} renamed or moved`);
+      if (c.removed) parts.push(`${n(c.removed)} removed from the index`);
+      return parts.join(", ") + ".";
+    },
+    scopeNote: "Untick a folder to leave it out of the search.",
+    showFolders: (name) => `Show the folders in ${name}`,
+    hideFolders: (name) => `Hide the folders in ${name}`,
+    filesIn: (count) => count === 1 ? "1 file" : `${n(count)} files`,
+    scoped: "in part of the library",
     searchPlaceholder: "Search your books",
     searchButton: "Search",
     helpTitle: "Help",
@@ -68,6 +87,11 @@ const TEXTS = {
         "A star at the end finds every word that begins that way: melancol* finds melancolia, melancólico, melancholy.",
         "Chinese and Japanese: type the characters; Mulu finds exactly that sequence.",
       ]],
+      ["Libraries and scope", [
+        "The library appears on the left with its folders. Untick a folder to leave it out of the search; tick it again to bring it back. The index stays whole, so this is instant.",
+        "Mulu checks the library for changes each time it opens. The ↻ button checks again now. Only new and changed files are read; renamed or moved files keep their place in the index.",
+        "Files that left the folder only leave Mulu's index: Mulu never deletes anything.",
+      ]],
       ["Results", [
         "Each file appears once, with the number of occurrences. The arrow shows the passages, with 25 words before and after and the page or chapter.",
         "Enter or double click opens the file in the program you usually use for it.",
@@ -86,6 +110,25 @@ const TEXTS = {
   },
   "pt-BR": {
     searchLabel: "Pesquisar na biblioteca",
+    basesTitle: "Bases",
+    refresh: "Conferir as mudanças",
+    checking: "Conferindo as mudanças…",
+    checked: (when) => `Conferida em ${when}`,
+    neverChecked: "Ainda não conferida",
+    noChanges: "Nenhuma mudança desde a última conferência.",
+    changes: (c) => {
+      const parts = [];
+      if (c.added) parts.push(`${n(c.added)} ${c.added === 1 ? "novo" : "novos"}`);
+      if (c.changed) parts.push(`${n(c.changed)} ${c.changed === 1 ? "alterado" : "alterados"}`);
+      if (c.moved) parts.push(`${n(c.moved)} ${c.moved === 1 ? "renomeado ou movido" : "renomeados ou movidos"}`);
+      if (c.removed) parts.push(`${n(c.removed)} ${c.removed === 1 ? "removido" : "removidos"} do índice`);
+      return parts.join(", ") + ".";
+    },
+    scopeNote: "Desmarque uma pasta para deixá-la fora da pesquisa.",
+    showFolders: (name) => `Mostrar as pastas de ${name}`,
+    hideFolders: (name) => `Esconder as pastas de ${name}`,
+    filesIn: (count) => count === 1 ? "1 arquivo" : `${n(count)} arquivos`,
+    scoped: "em parte da base",
     searchPlaceholder: "Pesquise nos seus livros",
     searchButton: "Pesquisar",
     helpTitle: "Ajuda",
@@ -144,6 +187,11 @@ const TEXTS = {
         "Um asterisco no fim encontra todas as palavras que começam assim: melancol* encontra melancolia, melancólico, melancholy.",
         "Chinês e japonês: digite os caracteres; o Mulu encontra exatamente essa sequência.",
       ]],
+      ["Bases e escopo", [
+        "A base aparece à esquerda, com as suas pastas. Desmarque uma pasta para deixá-la fora da pesquisa; marque de novo para trazê-la de volta. O índice continua inteiro, por isso a mudança é instantânea.",
+        "O Mulu confere as mudanças da base cada vez que é aberto. O botão ↻ confere de novo na hora. Só os arquivos novos e alterados são lidos; os renomeados ou movidos mantêm o lugar no índice.",
+        "Arquivos que saíram da pasta saem só do índice do Mulu: o Mulu nunca apaga nada.",
+      ]],
       ["Resultados", [
         "Cada arquivo aparece uma vez, com o número de ocorrências. A seta mostra os trechos, com 25 palavras antes e depois e a página ou o capítulo.",
         "Enter ou duplo clique abre o arquivo no programa que você costuma usar para ele.",
@@ -162,6 +210,25 @@ const TEXTS = {
   },
   es: {
     searchLabel: "Buscar en la biblioteca",
+    basesTitle: "Bibliotecas",
+    refresh: "Comprobar los cambios",
+    checking: "Comprobando los cambios…",
+    checked: (when) => `Comprobada el ${when}`,
+    neverChecked: "Todavía no comprobada",
+    noChanges: "Ningún cambio desde la última comprobación.",
+    changes: (c) => {
+      const parts = [];
+      if (c.added) parts.push(`${n(c.added)} ${c.added === 1 ? "nuevo" : "nuevos"}`);
+      if (c.changed) parts.push(`${n(c.changed)} ${c.changed === 1 ? "modificado" : "modificados"}`);
+      if (c.moved) parts.push(`${n(c.moved)} ${c.moved === 1 ? "renombrado o movido" : "renombrados o movidos"}`);
+      if (c.removed) parts.push(`${n(c.removed)} ${c.removed === 1 ? "quitado" : "quitados"} del índice`);
+      return parts.join(", ") + ".";
+    },
+    scopeNote: "Desmarque una carpeta para dejarla fuera de la búsqueda.",
+    showFolders: (name) => `Mostrar las carpetas de ${name}`,
+    hideFolders: (name) => `Ocultar las carpetas de ${name}`,
+    filesIn: (count) => count === 1 ? "1 archivo" : `${n(count)} archivos`,
+    scoped: "en parte de la biblioteca",
     searchPlaceholder: "Busque en sus libros",
     searchButton: "Buscar",
     helpTitle: "Ayuda",
@@ -219,6 +286,11 @@ const TEXTS = {
         "Entre comillas, una frase exacta: \"olhos de ressaca\".",
         "Un asterisco al final encuentra todas las palabras que empiezan así: melancol* encuentra melancolía, melancólico, melancholy.",
         "Chino y japonés: escriba los caracteres; Mulu encuentra exactamente esa secuencia.",
+      ]],
+      ["Bibliotecas y alcance", [
+        "La biblioteca aparece a la izquierda, con sus carpetas. Desmarque una carpeta para dejarla fuera de la búsqueda; márquela de nuevo para recuperarla. El índice sigue entero, por eso el cambio es instantáneo.",
+        "Mulu comprueba los cambios de la biblioteca cada vez que se abre. El botón ↻ los comprueba de nuevo en el momento. Solo se leen los archivos nuevos y modificados; los renombrados o movidos conservan su lugar en el índice.",
+        "Los archivos que salieron de la carpeta solo salen del índice de Mulu: Mulu nunca borra nada.",
       ]],
       ["Resultados", [
         "Cada archivo aparece una vez, con el número de apariciones. La flecha muestra los fragmentos, con 25 palabras antes y después y la página o el capítulo.",
@@ -313,9 +385,10 @@ async function refreshStatus() {
   const hasLibrary = Boolean(status.library);
   $("welcome").hidden = hasLibrary;
   $("library").hidden = !hasLibrary;
+  $("bases").hidden = !hasLibrary;
   $("search-form").hidden = !hasLibrary;
   if (!hasLibrary) return;
-  $("library-path").textContent = status.library;
+  showBase(status);
 
   const progress = status.progress;
   $("indexing").hidden = !progress;
@@ -362,6 +435,172 @@ $("pace-button").addEventListener("click", async () => {
   await refreshStatus();
 });
 
+// ---------------------------------------------------------------- Bases and scope
+
+const dateFormat = new Intl.DateTimeFormat(language, { dateStyle: "short", timeStyle: "short" });
+
+/** Folders left out of the search ("" is the top folder of the base). Each folder
+ *  counts for the files directly in it; ticking or unticking a folder applies to all
+ *  the folders below it too. */
+const unticked = new Set();
+let folderList = [];
+let treeKey = "";
+let previousFolders = new Set();
+
+function showBase(status) {
+  const path = status.library;
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  $("base-name").textContent = parts[parts.length - 1] || path;
+  $("base-path").textContent = path;
+  const busy = Boolean(status.progress);
+  $("refresh-button").disabled = busy;
+  $("refresh-button").setAttribute("aria-busy", String(busy));
+  if (busy) {
+    $("base-checked").textContent = T.checking;
+  } else if (status.checked) {
+    $("base-checked").textContent = T.checked(dateFormat.format(new Date(status.checked * 1000)));
+  } else {
+    $("base-checked").textContent = T.neverChecked;
+  }
+  const c = status.changes;
+  const anything = c && (c.added || c.changed || c.moved || c.removed);
+  $("base-changes").textContent = !c ? "" : anything ? T.changes(c) : T.noChanges;
+  // The folders change when files are found, moved or removed.
+  const key = `${status.files}|${status.checked}|${busy}`;
+  if (key !== treeKey) {
+    treeKey = key;
+    loadFolders();
+  }
+}
+
+async function loadFolders() {
+  try {
+    folderList = await call("folders");
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+  const known = new Set(folderList.map((f) => f.path));
+  for (const path of [...unticked]) if (path !== "" && !known.has(path)) unticked.delete(path);
+  // A folder that appeared in a check follows its parent: inside an unticked folder,
+  // it starts unticked. Parents come before their subfolders in the list.
+  for (const folder of folderList) {
+    if (!previousFolders.has(folder.path) && previousFolders.size > 0) {
+      const cut = folder.path.lastIndexOf("/");
+      if (unticked.has(cut < 0 ? "" : folder.path.slice(0, cut))) unticked.add(folder.path);
+    }
+  }
+  previousFolders = known;
+  buildTree();
+}
+
+function childrenOf(parent) {
+  return folderList.filter((f) => {
+    const cut = f.path.lastIndexOf("/");
+    return (cut < 0 ? "" : f.path.slice(0, cut)) === parent;
+  }).sort((a, b) => a.path.localeCompare(b.path, language, { sensitivity: "base", numeric: true }));
+}
+
+function isUnder(path, folder) {
+  return folder === "" || path === folder || path.startsWith(folder + "/");
+}
+
+/** A click on a box: a ticked box unticks its folder and all below it; an unticked or
+ *  half-ticked box ticks them all (the usual convention). */
+function toggleScope(folder) {
+  const out = ["", ...folderList.map((f) => f.path)].some((p) => isUnder(p, folder) && unticked.has(p));
+  setScope(folder, out);
+}
+
+/** Ticks or unticks a folder and every folder below it. */
+function setScope(folder, included) {
+  for (const path of ["", ...folderList.map((f) => f.path)]) {
+    if (isUnder(path, folder)) {
+      if (included) unticked.delete(path); else unticked.add(path);
+    }
+  }
+  updateChecks();
+  if (currentQuery) search(currentQuery);
+}
+
+/** Shows each box ticked, unticked, or half (some folders below unticked). */
+function updateChecks() {
+  const all = ["", ...folderList.map((f) => f.path)];
+  const show = (box, folder) => {
+    const below = all.filter((p) => isUnder(p, folder));
+    const out = below.filter((p) => unticked.has(p)).length;
+    box.checked = out < below.length;
+    box.indeterminate = out > 0 && out < below.length;
+  };
+  show($("base-check"), "");
+  for (const box of document.querySelectorAll("#tree input[type=checkbox]")) show(box, box.dataset.path);
+}
+
+function buildTree() {
+  const tree = $("tree");
+  tree.replaceChildren();
+  tree.append(...childrenOf("").map(folderItem));
+  updateChecks();
+}
+
+let boxNumber = 0;
+/** Folders shown open, kept open when the tree is rebuilt after a check. */
+const expanded = new Set();
+
+function folderItem(folder) {
+  const name = folder.path.slice(folder.path.lastIndexOf("/") + 1);
+  const item = el("li");
+  const row = el("div", null, "tree-row");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.id = `folder-${boxNumber++}`;
+  box.dataset.path = folder.path;
+  box.addEventListener("change", () => toggleScope(folder.path));
+  const label = el("label", name);
+  label.htmlFor = box.id;
+  label.title = folder.path;
+  const count = el("span", n(folder.files), "tree-count");
+  count.setAttribute("aria-label", T.filesIn(folder.files));
+  const children = childrenOf(folder.path);
+  if (children.length > 0) {
+    const toggle = el("button", "▸", "tree-toggle");
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", T.showFolders(name));
+    let list = null;
+    toggle.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.textContent = open ? "▾" : "▸";
+      toggle.setAttribute("aria-label", open ? T.hideFolders(name) : T.showFolders(name));
+      if (open) expanded.add(folder.path); else expanded.delete(folder.path);
+      if (open && !list) {
+        // Subfolders are built when first opened: a large library has thousands.
+        list = el("ul");
+        list.append(...children.map(folderItem));
+        item.append(list);
+        updateChecks();
+      }
+      if (list) list.hidden = !open;
+    });
+    row.append(toggle);
+    if (expanded.has(folder.path)) queueMicrotask(() => toggle.click());
+  } else {
+    row.append(el("span", null, "tree-spacer"));
+  }
+  row.append(box, label, count);
+  item.append(row);
+  return item;
+}
+
+$("base-check").addEventListener("change", () => toggleScope(""));
+
+$("refresh-button").addEventListener("click", async () => {
+  $("refresh-button").disabled = true;
+  await call("refresh");
+  await refreshStatus();
+});
+
 // ---------------------------------------------------------------- Search
 
 const PASSAGES_FIRST = 10;
@@ -382,7 +621,7 @@ async function search(query) {
     $("start-hint").hidden = false;
     return;
   }
-  const answer = await call("search", { query });
+  const answer = await call("search", { query, excluded: [...unticked] });
   if (!answer || query !== currentQuery) return;
   $("start-hint").hidden = true;
   results.replaceChildren();
@@ -393,7 +632,9 @@ async function search(query) {
   }
   if (answer.files.length > 0) {
     const seconds = (answer.elapsed_ms / 1000).toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    results.append(el("p", T.summary(answer.total, answer.files.length, seconds), "summary"));
+    const summary = el("p", T.summary(answer.total, answer.files.length, seconds), "summary");
+    if (unticked.size > 0) summary.append(" · ", el("span", T.scoped, "scoped"));
+    results.append(summary);
     const list = el("ol", null, "files");
     for (const file of answer.files) list.append(fileItem(file, query));
     results.append(list);

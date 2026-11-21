@@ -134,6 +134,14 @@ pub struct Changes {
     pub removed: u64,
 }
 
+/// A folder of the library with the number of book files in it and below it, for the
+/// scope tree (D16). `path` uses `/` on every system; the top folder is not listed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Folder {
+    pub path: String,
+    pub files: u64,
+}
+
 /// One passage around an occurrence.
 #[derive(Debug, Clone, Serialize)]
 pub struct Passage {
@@ -437,6 +445,33 @@ impl Library {
 
     /// Runs a search: files whose text contains it, then files whose name does.
     pub fn search(&self, query: &str) -> Result<Answer> {
+        self.search_in(query, &[])
+    }
+
+    /// The folders of the library that hold book files, with their counts.
+    pub fn folders(&self) -> Result<Vec<Folder>> {
+        let mut counts: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+        for entry in self.catalog().all()? {
+            let key = folder_key(&entry.relative);
+            let mut at = key.as_str();
+            while !at.is_empty() {
+                *counts.entry(at.to_owned()).or_default() += 1;
+                at = at.rfind('/').map_or("", |i| &at[..i]);
+            }
+        }
+        Ok(counts
+            .into_iter()
+            .map(|(path, files)| Folder { path, files })
+            .collect())
+    }
+
+    /// Runs a search leaving out the files directly in the `excluded` folders (paths as
+    /// given by [`Library::folders`]; `""` is the top folder). Subfolders are not
+    /// excluded with their parent: the window sends every unticked folder, so that a
+    /// folder can be left out while one of its subfolders stays in. The index stays
+    /// whole: changing the scope only filters the answer, so it is instant
+    /// (instructions, section 2).
+    pub fn search_in(&self, query: &str, excluded: &[String]) -> Result<Answer> {
         let start = Instant::now();
         let results = self.index.search(query)?;
         let catalog = self.catalog();
@@ -464,7 +499,17 @@ impl Library {
                 .collect()
         };
         drop(catalog);
-        let total = results.total();
+        let excluded: std::collections::HashSet<&str> =
+            excluded.iter().map(String::as_str).collect();
+        let outside = |f: &FoundFile| excluded.contains(folder_key(&f.path).as_str());
+        let (files, by_name, total) = if excluded.is_empty() {
+            (files, by_name, results.total())
+        } else {
+            let files: Vec<FoundFile> = files.into_iter().filter(|f| !outside(f)).collect();
+            let by_name = by_name.into_iter().filter(|f| !outside(f)).collect();
+            let total = files.iter().map(|f| u64::from(f.count)).sum();
+            (files, by_name, total)
+        };
         *self
             .last
             .lock()
@@ -538,6 +583,19 @@ impl Library {
             .get(file_id)?
             .map(|e| self.root.join(e.relative)))
     }
+}
+
+/// The folder of a file, relative to the library folder, with `/` between parts. (On
+/// Linux and macOS a `\` can be part of a name, so only Windows paths are converted.)
+fn folder_key(relative: &str) -> String {
+    let relative = if std::path::MAIN_SEPARATOR == '\\' {
+        relative.replace('\\', "/")
+    } else {
+        relative.to_owned()
+    };
+    relative
+        .rfind('/')
+        .map_or_else(String::new, |i| relative[..i].to_owned())
 }
 
 fn now() -> i64 {

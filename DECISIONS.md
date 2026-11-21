@@ -262,6 +262,25 @@ Version 0.2 starts with the change check of D16: after the first reading, only w
 - **Limits:** a book edited in the middle without any change of size or date is not noticed (rare for books; the date changes on any normal save). Catalogs from 0.1 have no fingerprints: unchanged files are not read again, but a file moved before being read once by 0.2 is read again at its new place. The SHA-256 component was already in the build through Tauri: no new third-party component.
 - **Tests:** a new, a changed, a renamed, a moved and a deleted file in one check, with only the new and the changed file read; two identical copies; a catalog from 0.1.
 
+### D32. The scope tree: one box per folder, for the files directly in it (developer)
+
+The scope of a search (instructions, section 2) is the set of folders whose boxes are ticked. Each box covers the files directly in its folder; a click applies to the folder and every folder below it; a box shows half-ticked when some folders below it differ. A click on a half-ticked box ticks everything below it (the usual convention). The window sends the unticked folders with each search, and the library drops the files in exactly those folders from the answer: the index is never touched, so changing the scope is instant.
+
+- **Why per folder and not per subtree:** with "a folder and everything below it" as the unit, a folder could not be left out while one of its subfolders stays in. Exact folders also avoid the classic prefix trap ("Greece" must not leave out "Greece, ancient").
+- **New folders** found by a check start unticked when their parent folder is unticked.
+- **Not kept between sessions yet:** the scope starts whole each time Mulu opens. To be reconsidered with several libraries (0.2.1).
+- **Large libraries:** subfolders are built in the window only when their parent is opened.
+- Checked end to end on Linux under Xvfb: search, unticking and reticking, half-ticked parents, the refresh button after renaming, moving, adding and deleting files, and a new folder inside an unticked one.
+
+### D33. Search by signs, taught by the advanced search panel (maintainer)
+
+Decided by the maintainer on 2026-11-21 (addendum 3, part A). Search operators are signs, not words: `"..."` exact phrase (inside quotes everything is text), `-` without this word (only at the start of a word after a space; hyphenated words stay words), `|` either word, `~N` within N words, `*` word beginning, `( )` grouping, `name:` in the file name only; `author:`, `title:` and `year:1880..1900` come with the catalog in 0.6. Plain words in capitals (AND, OR, NOT, or their translations) are not operators.
+
+- **Why:** one notation in every interface language and every script, and no word searched can be mistaken for an operator ("capitu não bentinho" searches three words). Operator words in capitals were considered (the convention of Google, library catalogs and DocFetcher, which uses Lucene's syntax), alone or together with signs; rejected as two rules to learn and a source of silent mistakes, since "não", "e" and "ou" are among the most frequent Portuguese words.
+- **Teaching (Mulu as librarian):** an "Advanced search" panel with optional fields (all these words, exact phrase, either, none of these, near each other within 5/10/25/50 words, word beginning, where to search), each labeled with its sign; the search box shows the signs as the fields are filled, and stays editable; a "How to search" glossary with examples from literature that run on click. A line reading the query back in plain language, and automatic correction tips, were considered and left out by the maintainer.
+- **Comma not used for "either":** people who type `capitu, bentinho` usually mean both words.
+- **Release:** 0.2.2. Keyboard and screen-reader accessible like the rest.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

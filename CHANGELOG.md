@@ -4,6 +4,21 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-21
+
+Test script: `docs/testing/v0.2.0.md`.
+
+### Added
+
+- Incremental updates: each time Mulu opens, and with the new ↻ button, it checks the library for changes and reads only new and changed files. Renamed and moved books are recognized by a fingerprint of their content and keep their place in the index without being read again; files no longer in the folder leave the index (never the disk) (D16, D31).
+- A panel on the left with the library, the date of the latest check and a short summary of what it found ("3 new, 1 changed, 2 removed from the index").
+- The library's folders as a tree with checkboxes: unticked folders are left out of the search, instantly, and the index stays whole. Each box counts for the files directly in its folder; ticking or unticking applies to the folders below it too, so a folder can be left out while one of its subfolders stays in (D32).
+- Results say when the search covered only part of the library.
+
+### Changed
+
+- Updating from 0.1 keeps the index: files that did not change are not read again.
+
 ## [0.1.4] - 2026-11-21
 
 Test script: `docs/testing/v0.1.4.md`.
