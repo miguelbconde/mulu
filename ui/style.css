@@ -569,3 +569,15 @@ footer {
 @media (max-width: 760px) {
   .bases { flex-basis: 220px; padding-left: 16px; }
 }
+
+/* ---------------------------------------------------------------- 0.2.1: several bases */
+
+.base { padding: 14px 0 16px; border-top: 1px solid var(--rule); }
+.base:first-child { border-top: 0; padding-top: 4px; }
+.base-actions { display: flex; gap: 6px; }
+.add-library { margin: 14px 0 4px; }
+.bases .error { color: var(--stamp); font-style: normal; margin-left: 0 !important; }
+.bases .scope-note { margin: 0 0 10px !important; }
+.base-missing { color: var(--stamp); }
+.remove-library { font-size: 12px; margin-left: 26px; }
+#remove-text { line-height: 1.5; }

@@ -187,6 +187,12 @@ impl Library {
     ///
     /// Must not run while [`Library::index_pending`] runs (both write the index).
     pub fn refresh(&self) -> Result<Changes> {
+        // A missing folder (an external disk not plugged in, a network folder out of
+        // reach) must not look like a folder whose books were all removed: nothing is
+        // checked, and the index stays as it is.
+        if !self.root.is_dir() {
+            return Err(format!("library folder not found: {}", self.root.display()).into());
+        }
         let found = walk::book_files(&self.root);
         let known = self.catalog().known()?;
         let mut plan = Plan::default();
