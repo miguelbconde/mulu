@@ -147,6 +147,23 @@ impl Catalog {
         Ok(())
     }
 
+    /// A value kept with the library (the date of the latest check, the skip rules).
+    pub fn meta(&self, key: &str) -> Result<Option<String>> {
+        Ok(self
+            .db
+            .query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
+            .optional()?)
+    }
+
+    pub fn set_meta(&mut self, key: &str, value: &str) -> Result<()> {
+        self.db.execute(
+            "INSERT INTO meta (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [key, value],
+        )?;
+        Ok(())
+    }
+
     /// When the library was last checked for changes, in seconds since 1970.
     pub fn checked(&self) -> Result<Option<i64>> {
         let value: Option<String> = self

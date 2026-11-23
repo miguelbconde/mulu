@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
-<body data-version="0.2.0">
+<body data-version="0.2.1">
   <header class="masthead">
     <span class="seal" aria-hidden="true">目录</span>
     <span class="wordmark">Mulu</span>
@@ -23,18 +23,11 @@
   <!-- The bases and the scope of the search (instructions, section 2; D16). -->
   <aside id="bases" class="bases" aria-labelledby="bases-title" hidden>
     <h2 id="bases-title" class="label" data-i18n="basesTitle">Libraries</h2>
-    <div class="base">
-      <div class="base-head">
-        <input type="checkbox" id="base-check" checked>
-        <label for="base-check" id="base-name" class="base-name"></label>
-        <button type="button" id="refresh-button" class="icon-button" data-i18n-title="refresh" title="Check for changes">↻</button>
-      </div>
-      <p id="base-path" class="path base-path"></p>
-      <p id="base-checked" class="note small" aria-live="polite"></p>
-      <p id="base-changes" class="note small" aria-live="polite"></p>
-      <p class="note small scope-note" data-i18n="scopeNote">Untick a folder to leave it out of the search.</p>
-      <ul id="tree" class="tree"></ul>
-    </div>
+    <p class="note small scope-note" data-i18n="scopeNote">Untick a folder to leave it out of the search.</p>
+    <div id="base-list"></div>
+    <p class="add-library"><button type="button" id="add-library" class="link" data-i18n="addLibrary">+ Add a library</button>
+      <button type="button" id="add-computer" class="link small" data-i18n="orComputer">or the whole computer</button></p>
+    <p id="add-error" class="note small error" role="alert"></p>
   </aside>
 
   <div class="scroll" id="scroll">
@@ -45,6 +38,10 @@
       <p class="lede" data-i18n="purpose">Choose the folder where you keep your books. Mulu reads them and lets you search every word inside, on this computer only.</p>
       <hr>
       <button type="button" id="choose" class="primary" data-i18n="chooseFolder">Choose the folder with your books</button>
+      <span class="recommended note" data-i18n="recommended">(recommended)</span>
+      <p class="or-computer"><button type="button" id="choose-computer" class="link" data-i18n="wholeComputer">Or read the whole computer</button></p>
+      <p class="note small" data-i18n="computerNote">Your home folder and your other disks. System, program, hidden and temporary folders are left out.</p>
+      <p id="welcome-error" class="note error" role="alert"></p>
       <p class="note" data-i18n="chooseNote">Mulu only reads your files: it never changes, moves or deletes them.</p>
       <hr>
       <h2 class="label" data-i18n="promisesTitle">Promises</h2>
@@ -78,7 +75,7 @@
   </div>
 
   <footer>
-    <span class="label"><span data-i18n="version">Version</span> <span id="version">0.2.0</span></span>
+    <span class="label"><span data-i18n="version">Version</span> <span id="version">0.2.1</span></span>
     <span class="label footer-keys" data-i18n="keys">Ctrl+F: search · Enter or double click: open the file</span>
   </footer>
 
@@ -94,6 +91,38 @@
       <button type="button" id="copy-report" class="link" data-i18n="copyReport">Copy a reading report for the developer</button>
       <span id="copied" class="note" aria-live="polite"></span>
       <button type="button" class="primary close" data-i18n="close">Close</button>
+    </p>
+  </dialog>
+
+  <dialog id="survey-dialog" aria-labelledby="survey-title">
+    <div class="dialog-head">
+      <h2 id="survey-title" data-i18n="surveyTitle">Before reading</h2>
+    </div>
+    <p id="survey-intro"></p>
+    <h3 class="label" data-i18n="formatsTitle">Formats</h3>
+    <ul id="survey-formats" class="plain-list survey-list"></ul>
+    <h3 class="label" data-i18n="foldersTitle">Folders</h3>
+    <div id="survey-places"></div>
+    <p id="survey-notes" class="note small"></p>
+    <p class="dialog-actions">
+      <button type="button" class="close" data-i18n="cancel">Cancel</button>
+      <button type="button" id="survey-start" class="primary" data-i18n="startReading">Read these books</button>
+    </p>
+  </dialog>
+
+  <dialog id="counting-dialog" aria-labelledby="counting-title">
+    <h2 id="counting-title" data-i18n="counting">Counting the books…</h2>
+    <progress aria-labelledby="counting-title"></progress>
+  </dialog>
+
+  <dialog id="remove-dialog" aria-labelledby="remove-title">
+    <div class="dialog-head">
+      <h2 id="remove-title" data-i18n="removeTitle">Take this library out of Mulu?</h2>
+    </div>
+    <p id="remove-text"></p>
+    <p class="dialog-actions">
+      <button type="button" class="close" data-i18n="cancel">Cancel</button>
+      <button type="button" id="remove-confirm" class="primary" data-i18n="removeConfirm">Take it out</button>
     </p>
   </dialog>
 

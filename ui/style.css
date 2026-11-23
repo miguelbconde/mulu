@@ -569,3 +569,30 @@ footer {
 @media (max-width: 760px) {
   .bases { flex-basis: 220px; padding-left: 16px; }
 }
+
+/* ---------------------------------------------------------------- 0.2.1: several bases */
+
+.base { padding: 14px 0 16px; border-top: 1px solid var(--rule); }
+.base:first-child { border-top: 0; padding-top: 4px; }
+.base-actions { display: flex; gap: 6px; }
+.add-library { margin: 14px 0 4px; }
+.bases .error { color: var(--stamp); font-style: normal; margin-left: 0 !important; }
+.bases .scope-note { margin: 0 0 10px !important; }
+.base-missing { color: var(--stamp); }
+.remove-library { font-size: 12px; margin-left: 26px; }
+#remove-text { line-height: 1.5; }
+
+/* Survey before the first reading. */
+.recommended { margin-left: 8px; }
+.or-computer { margin: 14px 0 2px; }
+.survey-list li { display: block; padding: 2px 0; }
+.survey-list .tree-row { gap: 8px; }
+.survey-list ul { list-style: none; padding-left: 24px; margin: 0; }
+.survey-list label { flex: 1; overflow-wrap: anywhere; }
+.survey-list input { accent-color: var(--stamp); width: 16px; height: 16px; flex: none; }
+.survey-place { margin: 4px 0 12px; }
+.survey-place-name { font-family: var(--serif); font-size: 17px; }
+#survey-dialog { width: min(640px, 92vw); }
+#survey-places { max-height: 32vh; overflow-y: auto; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 8px 0; }
+#counting-dialog progress { width: 100%; }
+#survey-dialog { max-height: 92vh; }

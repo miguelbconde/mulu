@@ -205,3 +205,20 @@ fn a_library_from_version_0_1_is_checked_without_reading_everything_again() {
     assert_eq!(read(&library), 1);
     assert_eq!(names(&library, "livro"), ["A/2.txt", "A/um.txt"]);
 }
+
+#[test]
+fn a_missing_library_folder_keeps_its_index() {
+    // An external disk that is not plugged in: checking must not empty the index.
+    let parent = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    let root = parent.path().join("Disco externo");
+    write(&root, "A/livro.txt", "um livro no disco externo");
+    let library = Library::open(&root, store.path()).unwrap();
+    library.refresh().unwrap();
+    library.index_pending(vec![reader()], |_| true).unwrap();
+
+    std::fs::rename(&root, parent.path().join("desligado")).unwrap();
+    assert!(library.refresh().is_err());
+    assert_eq!(library.progress().unwrap().total, 1);
+    assert_eq!(names(&library, "externo"), ["A/livro.txt"]);
+}

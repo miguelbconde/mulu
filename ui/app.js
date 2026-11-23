@@ -11,6 +11,31 @@ const TEXTS = {
   en: {
     searchLabel: "Search the library",
     basesTitle: "Libraries",
+    recommended: "(recommended)",
+    wholeComputer: "Or read the whole computer",
+    orComputer: "or the whole computer",
+    computerNote: "Your home folder and your other disks. System, program, hidden and temporary folders are left out.",
+    counting: "Counting the books…",
+    surveyTitle: "Before reading",
+    surveyIntro: (files, mb) => `Mulu found ${n(files)} book files (${size(mb)}). Untick what you do not want Mulu to read.`,
+    formatsTitle: "Formats",
+    foldersTitle: "Folders",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Plain text (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} of them are only in the cloud: Mulu lists them by name and never downloads them.`,
+    holds: (names) => `Already libraries of their own, left out here: ${names.join("; ")}.`,
+    startReading: "Read these books",
+    noBooks: "No files in the formats Mulu reads were found here.",
+    addLibrary: "+ Add a library",
+    removeLibrary: "Take out of Mulu",
+    removeTitle: "Take this library out of Mulu?",
+    removeText: (name) => `“${name}” will no longer be searched. Its folder and its files are not touched: only Mulu's index of it is deleted. You can add it again later; it will be read again.`,
+    removeConfirm: "Take it out",
+    cancel: "Cancel",
+    missing: "Folder not found (an external disk not plugged in?). Its books stay in the index.",
+    readingBase: (done, total) => total === 0 ? "Checking for changes…" : `Reading: ${n(done)} of ${n(total)}`,
+    overlap: (o) => o.kind === "same" ? "This folder is already a library."
+      : o.kind === "inside" ? `This folder is already part of the library “${o.library}”.`
+      : `This folder holds the library “${o.library}”. Take that library out first, or choose another folder.`,
     refresh: "Check for changes",
     checking: "Checking for changes…",
     checked: (when) => `Checked on ${when}`,
@@ -111,6 +136,31 @@ const TEXTS = {
   "pt-BR": {
     searchLabel: "Pesquisar na biblioteca",
     basesTitle: "Bases",
+    recommended: "(recomendado)",
+    wholeComputer: "Ou ler o computador inteiro",
+    orComputer: "ou o computador inteiro",
+    computerNote: "A sua pasta pessoal e os outros discos. Pastas do sistema, de programas, ocultas e temporárias ficam de fora.",
+    counting: "Contando os livros…",
+    surveyTitle: "Antes de ler",
+    surveyIntro: (files, mb) => `O Mulu encontrou ${n(files)} arquivos de livros (${size(mb)}). Desmarque o que você não quer que o Mulu leia.`,
+    formatsTitle: "Formatos",
+    foldersTitle: "Pastas",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Texto simples (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} deles estão só na nuvem: o Mulu lista esses pelo nome e nunca os baixa.`,
+    holds: (names) => `Já são bases e ficam de fora desta: ${names.join("; ")}.`,
+    startReading: "Ler estes livros",
+    noBooks: "Não encontrei aqui arquivos nos formatos que o Mulu lê.",
+    addLibrary: "+ Acrescentar base",
+    removeLibrary: "Tirar do Mulu",
+    removeTitle: "Tirar esta base do Mulu?",
+    removeText: (name) => `“${name}” deixará de ser pesquisada. A pasta e os arquivos dela não são tocados: só o índice do Mulu é apagado. Você pode acrescentá-la de novo depois; ela será lida outra vez.`,
+    removeConfirm: "Tirar",
+    cancel: "Cancelar",
+    missing: "Pasta não encontrada (disco externo desligado?). Os livros dela continuam no índice.",
+    readingBase: (done, total) => total === 0 ? "Conferindo as mudanças…" : `Lendo: ${n(done)} de ${n(total)}`,
+    overlap: (o) => o.kind === "same" ? "Esta pasta já é uma base."
+      : o.kind === "inside" ? `Esta pasta já faz parte da base “${o.library}”.`
+      : `Esta pasta contém a base “${o.library}”. Tire essa base antes, ou escolha outra pasta.`,
     refresh: "Conferir as mudanças",
     checking: "Conferindo as mudanças…",
     checked: (when) => `Conferida em ${when}`,
@@ -211,6 +261,31 @@ const TEXTS = {
   es: {
     searchLabel: "Buscar en la biblioteca",
     basesTitle: "Bibliotecas",
+    recommended: "(recomendado)",
+    wholeComputer: "O leer todo el ordenador",
+    orComputer: "o todo el ordenador",
+    computerNote: "Su carpeta personal y los otros discos. Las carpetas del sistema, de programas, ocultas y temporales quedan fuera.",
+    counting: "Contando los libros…",
+    surveyTitle: "Antes de leer",
+    surveyIntro: (files, mb) => `Mulu encontró ${n(files)} archivos de libros (${size(mb)}). Desmarque lo que no quiere que Mulu lea.`,
+    formatsTitle: "Formatos",
+    foldersTitle: "Carpetas",
+    formatName: { pdf: "PDF", epub: "EPUB", txt: "Texto plano (TXT)", md: "Markdown", html: "HTML" },
+    inCloud: (count) => `${n(count)} de ellos están solo en la nube: Mulu los lista por su nombre y nunca los descarga.`,
+    holds: (names) => `Ya son bibliotecas propias y quedan fuera de esta: ${names.join("; ")}.`,
+    startReading: "Leer estos libros",
+    noBooks: "No se encontraron aquí archivos en los formatos que lee Mulu.",
+    addLibrary: "+ Añadir biblioteca",
+    removeLibrary: "Quitar de Mulu",
+    removeTitle: "¿Quitar esta biblioteca de Mulu?",
+    removeText: (name) => `“${name}” dejará de buscarse. Su carpeta y sus archivos no se tocan: solo se borra el índice de Mulu. Puede añadirla de nuevo más tarde; se leerá otra vez.`,
+    removeConfirm: "Quitar",
+    cancel: "Cancelar",
+    missing: "Carpeta no encontrada (¿disco externo desconectado?). Sus libros siguen en el índice.",
+    readingBase: (done, total) => total === 0 ? "Comprobando los cambios…" : `Leyendo: ${n(done)} de ${n(total)}`,
+    overlap: (o) => o.kind === "same" ? "Esta carpeta ya es una biblioteca."
+      : o.kind === "inside" ? `Esta carpeta ya forma parte de la biblioteca “${o.library}”.`
+      : `Esta carpeta contiene la biblioteca “${o.library}”. Quite antes esa biblioteca, o elija otra carpeta.`,
     refresh: "Comprobar los cambios",
     checking: "Comprobando los cambios…",
     checked: (when) => `Comprobada el ${when}`,
@@ -382,25 +457,27 @@ async function refreshStatus() {
     console.error(error);
     return;
   }
-  const hasLibrary = Boolean(status.library);
+  const hasLibrary = status.bases.length > 0;
   $("welcome").hidden = hasLibrary;
   $("library").hidden = !hasLibrary;
   $("bases").hidden = !hasLibrary;
   $("search-form").hidden = !hasLibrary;
   if (!hasLibrary) return;
-  showBase(status);
+  showBases(status);
 
-  const progress = status.progress;
-  $("indexing").hidden = !progress;
-  $("ready-text").hidden = Boolean(progress);
-  if (progress) {
-    if (progress.total === 0) {
+  const reading = status.reading;
+  const files = status.bases.reduce((sum, b) => sum + b.files, 0);
+  status.problems = status.bases.reduce((sum, b) => sum + b.problems, 0);
+  $("indexing").hidden = !reading;
+  $("ready-text").hidden = Boolean(reading);
+  if (reading) {
+    if (reading.total === 0) {
       $("indexing-text").textContent = T.finding;
       $("indexing-bar").removeAttribute("value");
     } else {
-      $("indexing-text").textContent = T.indexing(progress.done, progress.total);
-      $("indexing-bar").max = progress.total;
-      $("indexing-bar").value = progress.done;
+      $("indexing-text").textContent = T.indexing(reading.done, reading.total);
+      $("indexing-bar").max = reading.total;
+      $("indexing-bar").value = reading.done;
     }
     $("pace-button").textContent = status.fast ? T.slower : T.faster;
     $("pace-note").textContent = status.fast ? T.slowerNote : T.fasterNote;
@@ -409,24 +486,14 @@ async function refreshStatus() {
   } else {
     clearInterval(polling);
     polling = null;
-    $("ready-text").textContent = T.ready(status.files);
+    $("ready-text").textContent = T.ready(files);
   }
   $("problems-button").hidden = status.problems === 0;
   $("problems-button").textContent = T.problems(status.problems);
 }
 
-$("choose").addEventListener("click", async () => {
-  $("choose").disabled = true;
-  try {
-    const chosen = await call("choose_folder");
-    if (chosen) {
-      await refreshStatus();
-      $("query").focus();
-    }
-  } finally {
-    $("choose").disabled = false;
-  }
-});
+$("choose").addEventListener("click", () => surveyFolder($("welcome-error")));
+$("choose-computer").addEventListener("click", () => surveyComputer($("welcome-error")));
 
 // Background reading (the default) or full speed (D29).
 $("pace-button").addEventListener("click", async () => {
@@ -439,63 +506,144 @@ $("pace-button").addEventListener("click", async () => {
 
 const dateFormat = new Intl.DateTimeFormat(language, { dateStyle: "short", timeStyle: "short" });
 
-/** Folders left out of the search ("" is the top folder of the base). Each folder
- *  counts for the files directly in it; ticking or unticking a folder applies to all
- *  the folders below it too. */
-const unticked = new Set();
-let folderList = [];
-let treeKey = "";
-let previousFolders = new Set();
+/** The scope of each library, by its folder: the folders left out of the search ("" is
+ *  the top folder). Each folder counts for the files directly in it; ticking or
+ *  unticking a folder applies to all the folders below it too (D32). */
+const scopes = new Map();
 
-function showBase(status) {
-  const path = status.library;
-  const parts = path.split(/[\\/]/).filter(Boolean);
-  $("base-name").textContent = parts[parts.length - 1] || path;
-  $("base-path").textContent = path;
-  const busy = Boolean(status.progress);
-  $("refresh-button").disabled = busy;
-  $("refresh-button").setAttribute("aria-busy", String(busy));
-  if (busy) {
-    $("base-checked").textContent = T.checking;
-  } else if (status.checked) {
-    $("base-checked").textContent = T.checked(dateFormat.format(new Date(status.checked * 1000)));
-  } else {
-    $("base-checked").textContent = T.neverChecked;
+function scopeOf(root) {
+  if (!scopes.has(root)) {
+    scopes.set(root, { unticked: new Set(), folders: [], previous: new Set(), expanded: new Set(), key: "", block: null });
   }
-  const c = status.changes;
-  const anything = c && (c.added || c.changed || c.moved || c.removed);
-  $("base-changes").textContent = !c ? "" : anything ? T.changes(c) : T.noChanges;
-  // The folders change when files are found, moved or removed.
-  const key = `${status.files}|${status.checked}|${busy}`;
-  if (key !== treeKey) {
-    treeKey = key;
-    loadFolders();
+  return scopes.get(root);
+}
+
+function baseName(root) {
+  const parts = root.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || root;
+}
+
+function showBases(status) {
+  const list = $("base-list");
+  const roots = status.bases.map((b) => b.root);
+  for (const root of [...scopes.keys()]) {
+    if (!roots.includes(root)) {
+      scopes.get(root).block?.remove();
+      scopes.delete(root);
+    }
+  }
+  for (const base of status.bases) {
+    const scope = scopeOf(base.root);
+    if (!scope.block) scope.block = baseBlock(base.root);
+    list.append(scope.block); // keeps the order of the list
+    const reading = status.reading && status.reading.base === base.root ? status.reading : null;
+    const q = (name) => scope.block.querySelector(name);
+    q(".refresh").disabled = Boolean(reading);
+    q(".refresh").setAttribute("aria-busy", String(Boolean(reading)));
+    if (!base.present) {
+      q(".checked").textContent = T.missing;
+      q(".checked").classList.add("base-missing");
+    } else {
+      q(".checked").classList.remove("base-missing");
+      q(".checked").textContent = reading ? T.readingBase(reading.done, reading.total)
+        : base.checked ? T.checked(dateFormat.format(new Date(base.checked * 1000)))
+        : T.neverChecked;
+    }
+    const c = base.changes;
+    const anything = c && (c.added || c.changed || c.moved || c.removed);
+    q(".changes").textContent = !c || reading ? "" : anything ? T.changes(c) : T.noChanges;
+    // The folders change when files are found, moved or removed.
+    const key = `${base.files}|${base.checked}|${Boolean(reading)}`;
+    if (key !== scope.key) {
+      scope.key = key;
+      loadFolders(base.root);
+    }
   }
 }
 
-async function loadFolders() {
+let boxNumber = 0;
+
+function baseBlock(root) {
+  const block = el("div", null, "base");
+  const head = el("div", null, "base-head");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.id = `base-${boxNumber++}`;
+  box.className = "base-check";
+  box.checked = true;
+  box.addEventListener("change", () => toggleScope(root, ""));
+  const label = el("label", baseName(root), "base-name");
+  label.htmlFor = box.id;
+  const refresh = el("button", "↻", "icon-button refresh");
+  refresh.type = "button";
+  refresh.title = T.refresh;
+  refresh.setAttribute("aria-label", `${T.refresh}: ${baseName(root)}`);
+  refresh.addEventListener("click", async () => {
+    refresh.disabled = true;
+    await call("refresh", { base: root });
+    await refreshStatus();
+  });
+  head.append(box, label, refresh);
+  const remove = el("button", T.removeLibrary, "link small remove-library");
+  remove.type = "button";
+  remove.addEventListener("click", () => askRemove(root));
+  block.append(
+    head,
+    el("p", root, "path base-path"),
+    el("p", null, "note small checked"),
+    el("p", null, "note small changes"),
+    el("ul", null, "tree"),
+    remove,
+  );
+  block.querySelector(".checked").setAttribute("aria-live", "polite");
+  return block;
+}
+
+let removing = null;
+
+function askRemove(root) {
+  removing = root;
+  $("remove-text").textContent = T.removeText(baseName(root));
+  showDialog($("remove-dialog"));
+}
+
+$("remove-confirm").addEventListener("click", async () => {
+  $("remove-dialog").close();
+  if (!removing) return;
+  await call("remove_library", { base: removing });
+  removing = null;
+  await refreshStatus();
+  if (currentQuery) search(currentQuery);
+});
+
+async function loadFolders(root) {
+  const scope = scopeOf(root);
   try {
-    folderList = await call("folders");
+    scope.folders = await call("folders", { base: root });
   } catch (error) {
     console.error(error);
     return;
   }
-  const known = new Set(folderList.map((f) => f.path));
-  for (const path of [...unticked]) if (path !== "" && !known.has(path)) unticked.delete(path);
+  const known = new Set(scope.folders.map((f) => f.path));
+  for (const path of [...scope.unticked]) if (path !== "" && !known.has(path)) scope.unticked.delete(path);
   // A folder that appeared in a check follows its parent: inside an unticked folder,
   // it starts unticked. Parents come before their subfolders in the list.
-  for (const folder of folderList) {
-    if (!previousFolders.has(folder.path) && previousFolders.size > 0) {
-      const cut = folder.path.lastIndexOf("/");
-      if (unticked.has(cut < 0 ? "" : folder.path.slice(0, cut))) unticked.add(folder.path);
+  if (scope.previous.size > 0) {
+    for (const folder of scope.folders) {
+      if (!scope.previous.has(folder.path)) {
+        const cut = folder.path.lastIndexOf("/");
+        if (scope.unticked.has(cut < 0 ? "" : folder.path.slice(0, cut))) scope.unticked.add(folder.path);
+      }
     }
   }
-  previousFolders = known;
-  buildTree();
+  scope.previous = known;
+  const tree = scope.block.querySelector(".tree");
+  tree.replaceChildren(...childrenOf(scope, "").map((f) => folderItem(root, f)));
+  updateChecks(root);
 }
 
-function childrenOf(parent) {
-  return folderList.filter((f) => {
+function childrenOf(scope, parent) {
+  return scope.folders.filter((f) => {
     const cut = f.path.lastIndexOf("/");
     return (cut < 0 ? "" : f.path.slice(0, cut)) === parent;
   }).sort((a, b) => a.path.localeCompare(b.path, language, { sensitivity: "base", numeric: true }));
@@ -507,47 +655,35 @@ function isUnder(path, folder) {
 
 /** A click on a box: a ticked box unticks its folder and all below it; an unticked or
  *  half-ticked box ticks them all (the usual convention). */
-function toggleScope(folder) {
-  const out = ["", ...folderList.map((f) => f.path)].some((p) => isUnder(p, folder) && unticked.has(p));
-  setScope(folder, out);
-}
-
-/** Ticks or unticks a folder and every folder below it. */
-function setScope(folder, included) {
-  for (const path of ["", ...folderList.map((f) => f.path)]) {
+function toggleScope(root, folder) {
+  const scope = scopeOf(root);
+  const all = ["", ...scope.folders.map((f) => f.path)];
+  const out = all.some((p) => isUnder(p, folder) && scope.unticked.has(p));
+  for (const path of all) {
     if (isUnder(path, folder)) {
-      if (included) unticked.delete(path); else unticked.add(path);
+      if (out) scope.unticked.delete(path); else scope.unticked.add(path);
     }
   }
-  updateChecks();
+  updateChecks(root);
   if (currentQuery) search(currentQuery);
 }
 
 /** Shows each box ticked, unticked, or half (some folders below unticked). */
-function updateChecks() {
-  const all = ["", ...folderList.map((f) => f.path)];
+function updateChecks(root) {
+  const scope = scopeOf(root);
+  const all = ["", ...scope.folders.map((f) => f.path)];
   const show = (box, folder) => {
     const below = all.filter((p) => isUnder(p, folder));
-    const out = below.filter((p) => unticked.has(p)).length;
+    const out = below.filter((p) => scope.unticked.has(p)).length;
     box.checked = out < below.length;
     box.indeterminate = out > 0 && out < below.length;
   };
-  show($("base-check"), "");
-  for (const box of document.querySelectorAll("#tree input[type=checkbox]")) show(box, box.dataset.path);
+  show(scope.block.querySelector(".base-check"), "");
+  for (const box of scope.block.querySelectorAll(".tree input[type=checkbox]")) show(box, box.dataset.path);
 }
 
-function buildTree() {
-  const tree = $("tree");
-  tree.replaceChildren();
-  tree.append(...childrenOf("").map(folderItem));
-  updateChecks();
-}
-
-let boxNumber = 0;
-/** Folders shown open, kept open when the tree is rebuilt after a check. */
-const expanded = new Set();
-
-function folderItem(folder) {
+function folderItem(root, folder) {
+  const scope = scopeOf(root);
   const name = folder.path.slice(folder.path.lastIndexOf("/") + 1);
   const item = el("li");
   const row = el("div", null, "tree-row");
@@ -555,13 +691,13 @@ function folderItem(folder) {
   box.type = "checkbox";
   box.id = `folder-${boxNumber++}`;
   box.dataset.path = folder.path;
-  box.addEventListener("change", () => toggleScope(folder.path));
+  box.addEventListener("change", () => toggleScope(root, folder.path));
   const label = el("label", name);
   label.htmlFor = box.id;
   label.title = folder.path;
   const count = el("span", n(folder.files), "tree-count");
   count.setAttribute("aria-label", T.filesIn(folder.files));
-  const children = childrenOf(folder.path);
+  const children = childrenOf(scope, folder.path);
   if (children.length > 0) {
     const toggle = el("button", "▸", "tree-toggle");
     toggle.type = "button";
@@ -573,18 +709,18 @@ function folderItem(folder) {
       toggle.setAttribute("aria-expanded", String(open));
       toggle.textContent = open ? "▾" : "▸";
       toggle.setAttribute("aria-label", open ? T.hideFolders(name) : T.showFolders(name));
-      if (open) expanded.add(folder.path); else expanded.delete(folder.path);
+      if (open) scope.expanded.add(folder.path); else scope.expanded.delete(folder.path);
       if (open && !list) {
         // Subfolders are built when first opened: a large library has thousands.
         list = el("ul");
-        list.append(...children.map(folderItem));
+        list.append(...children.map((f) => folderItem(root, f)));
         item.append(list);
-        updateChecks();
+        updateChecks(root);
       }
       if (list) list.hidden = !open;
     });
     row.append(toggle);
-    if (expanded.has(folder.path)) queueMicrotask(() => toggle.click());
+    if (scope.expanded.has(folder.path)) queueMicrotask(() => toggle.click());
   } else {
     row.append(el("span", null, "tree-spacer"));
   }
@@ -593,12 +729,187 @@ function folderItem(folder) {
   return item;
 }
 
-$("base-check").addEventListener("change", () => toggleScope(""));
+/** Where a file is: its folder, preceded by the name of its library when there are
+ *  several. */
+function whereIs(file) {
+  if (scopes.size < 2) return file.folder;
+  return file.folder ? `${baseName(file.base)} › ${file.folder}` : baseName(file.base);
+}
 
-$("refresh-button").addEventListener("click", async () => {
-  $("refresh-button").disabled = true;
-  await call("refresh");
+/** The folders left out of the search, library by library, as the search command
+ *  wants them. */
+function excludedScopes() {
+  return [...scopes.entries()]
+    .filter(([, scope]) => scope.unticked.size > 0)
+    .map(([base, scope]) => ({ base, folders: [...scope.unticked] }));
+}
+
+$("add-library").addEventListener("click", () => surveyFolder($("add-error")));
+$("add-computer").addEventListener("click", () => surveyComputer($("add-error")));
+
+// ---------------------------------------------------------------- Survey before reading
+
+/** Sizes in megabytes, shown in MB or GB. */
+function size(mb) {
+  return mb >= 1000 ? `${(mb / 1000).toLocaleString(language, { maximumFractionDigits: 1 })} GB` : `${n(mb)} MB`;
+}
+
+async function counting(work) {
+  showDialog($("counting-dialog"));
+  try {
+    return await work();
+  } finally {
+    $("counting-dialog").close();
+  }
+}
+
+async function surveyFolder(errorLine) {
+  errorLine.textContent = "";
+  const answer = await call("survey_folder");
+  if (answer.Err) {
+    errorLine.textContent = T.overlap(answer.Err);
+  } else if (answer.Ok) {
+    showSurvey([answer.Ok], errorLine);
+  }
+}
+
+async function surveyComputer(errorLine) {
+  errorLine.textContent = "";
+  const places = await counting(() => call("survey_computer"));
+  showSurvey(places, errorLine);
+}
+
+/** The places of the survey being shown, with what is unticked in each. */
+let surveyPlaces = [];
+
+function showSurvey(places, errorLine) {
+  const total = places.reduce((sum, p) => sum + p.survey.files, 0);
+  if (total === 0) {
+    errorLine.textContent = T.noBooks;
+    return;
+  }
+  surveyPlaces = places.filter((p) => p.survey.files > 0).map((p) => ({ ...p, out: new Set(), keep: true }));
+  const megabytes = places.reduce((sum, p) => sum + p.survey.megabytes, 0);
+  $("survey-intro").textContent = T.surveyIntro(total, megabytes);
+
+  // Formats, counted over all the places.
+  const formats = new Map();
+  for (const place of surveyPlaces) {
+    for (const [format, count] of place.survey.formats) formats.set(format, (formats.get(format) || 0) + count);
+  }
+  const formatList = $("survey-formats");
+  formatList.replaceChildren();
+  for (const [format, count] of [...formats.entries()].sort((a, b) => b[1] - a[1])) {
+    formatList.append(checkRow(`survey-format-${format}`, `${T.formatName[format] || format}`, count, true, (box) => {
+      box.dataset.format = format;
+    }));
+  }
+
+  // Folders: the top two levels of each place.
+  const placesBox = $("survey-places");
+  placesBox.replaceChildren();
+  surveyPlaces.forEach((place, i) => {
+    const block = el("div", null, "survey-place");
+    const folders = el("ul", null, "plain-list survey-list");
+    for (const folder of place.survey.folders.filter((f) => !f.path.includes("/"))) {
+      folders.append(folderRow(place, i, folder));
+    }
+    if (surveyPlaces.length === 1) {
+      block.append(el("p", place.root, "survey-place-name"), folders);
+    } else {
+      // Whole computer: each place (home folder, other disks) can be left out too.
+      const places = el("ul", null, "plain-list survey-list");
+      const row = checkRow(`survey-place-${i}`, place.root, place.survey.files, true, (box) => {
+        box.addEventListener("change", () => {
+          place.keep = box.checked;
+          for (const inner of folders.querySelectorAll("input")) inner.disabled = !box.checked;
+        });
+      });
+      row.append(folders);
+      places.append(row);
+      block.append(places);
+    }
+    placesBox.append(block);
+  });
+
+  const notes = [];
+  const cloud = surveyPlaces.reduce((sum, p) => sum + p.survey.in_cloud, 0);
+  if (cloud > 0) notes.push(T.inCloud(cloud));
+  const holds = surveyPlaces.flatMap((p) => p.holds);
+  if (holds.length > 0) notes.push(T.holds(holds));
+  $("survey-notes").textContent = notes.join(" ");
+  showDialog($("survey-dialog"));
+}
+
+/** A top folder of a place, with its subfolders, in the survey. */
+function folderRow(place, i, folder) {
+  const row = checkRow(`survey-${i}-${folder.path}`, folder.path, folder.files, true, (box) => {
+    box.addEventListener("change", () => setOut(place, folder.path, !box.checked, row));
+  });
+  const inner = place.survey.folders.filter((f) => {
+    const rest = f.path.startsWith(folder.path + "/") ? f.path.slice(folder.path.length + 1) : null;
+    return rest !== null && !rest.includes("/");
+  });
+  if (inner.length > 0) {
+    const sub = el("ul");
+    for (const child of inner) {
+      sub.append(checkRow(`survey-${i}-${child.path}`, child.path.slice(folder.path.length + 1), child.files, true, (box) => {
+        box.dataset.path = child.path;
+        box.addEventListener("change", () => setOut(place, child.path, !box.checked));
+      }));
+    }
+    row.append(sub);
+  }
+  return row;
+}
+
+/** A row with a checkbox, a label and a count. */
+function checkRow(id, text, count, checked, setup) {
+  const row = el("li");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.id = id.replace(/[^\w-]/g, "_") + "-" + boxNumber++;
+  box.checked = checked;
+  const label = el("label", text);
+  label.htmlFor = box.id;
+  const number = el("span", n(count), "tree-count");
+  number.setAttribute("aria-label", T.filesIn(count));
+  const line = el("div", null, "tree-row");
+  line.append(box, label, number);
+  row.append(line);
+  setup(box);
+  return row;
+}
+
+/** Leaves a folder out (with all below it) or lets it in again. The subfolders of a
+ *  folder left out cannot be ticked on their own: the folder is not even opened. */
+function setOut(place, path, out, row) {
+  if (out) place.out.add(path); else place.out.delete(path);
+  if (row) {
+    for (const inner of row.querySelectorAll("ul input")) {
+      inner.disabled = out;
+      inner.checked = !out && !place.out.has(inner.dataset.path);
+    }
+  }
+}
+
+$("survey-start").addEventListener("click", async () => {
+  const formats = [...$("survey-formats").querySelectorAll("input")].filter((b) => !b.checked).map((b) => b.dataset.format);
+  const libraries = surveyPlaces.filter((p) => p.keep).map((p) => ({
+    root: p.root,
+    formats,
+    // A subfolder left out inside a folder left out is already out.
+    folders: [...p.out].filter((path) => ![...p.out].some((o) => o !== path && path.startsWith(o + "/"))),
+  }));
+  $("survey-dialog").close();
+  if (libraries.length === 0) return;
+  try {
+    await call("create_libraries", { libraries });
+  } catch (error) {
+    console.error(error);
+  }
   await refreshStatus();
+  $("query").focus();
 });
 
 // ---------------------------------------------------------------- Search
@@ -621,7 +932,7 @@ async function search(query) {
     $("start-hint").hidden = false;
     return;
   }
-  const answer = await call("search", { query, excluded: [...unticked] });
+  const answer = await call("search", { query, excluded: excludedScopes() });
   if (!answer || query !== currentQuery) return;
   $("start-hint").hidden = true;
   results.replaceChildren();
@@ -633,7 +944,7 @@ async function search(query) {
   if (answer.files.length > 0) {
     const seconds = (answer.elapsed_ms / 1000).toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const summary = el("p", T.summary(answer.total, answer.files.length, seconds), "summary");
-    if (unticked.size > 0) summary.append(" · ", el("span", T.scoped, "scoped"));
+    if (excludedScopes().length > 0) summary.append(" · ", el("span", T.scoped, "scoped"));
     results.append(summary);
     const list = el("ol", null, "files");
     for (const file of answer.files) list.append(fileItem(file, query));
@@ -653,14 +964,14 @@ function fileItem(file, query) {
   const row = el("div", null, "file-row");
   row.tabIndex = 0;
   row.title = T.open;
-  row.addEventListener("dblclick", () => openFile(file.id, false));
+  row.addEventListener("dblclick", () => openFile(file, false));
   row.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") openFile(file.id, false);
+    if (event.key === "Enter") openFile(file, false);
   });
 
   const names = el("div", null, "file-names");
   names.append(el("span", file.name, "file-name"));
-  const details = el("span", file.folder, "file-folder");
+  const details = el("span", whereIs(file), "file-folder");
   if (file.problem) details.append(el("span", ` · ${reason(file.problem)}`, "file-problem"));
   names.append(details);
   row.append(names);
@@ -670,7 +981,7 @@ function fileItem(file, query) {
   reveal.type = "button";
   reveal.addEventListener("click", (event) => {
     event.stopPropagation();
-    openFile(file.id, true);
+    openFile(file, true);
   });
   row.append(reveal);
   item.append(row);
@@ -704,7 +1015,7 @@ function fileItem(file, query) {
 }
 
 async function loadPassages(list, query, file, skip, limit) {
-  const passages = await call("passages", { query, file: file.id, skip, limit });
+  const passages = await call("passages", { base: file.base, query, file: file.id, skip, limit });
   list.querySelector(".more")?.remove();
   for (const p of passages) {
     const item = el("li", null, "passage");
@@ -727,8 +1038,8 @@ async function loadPassages(list, query, file, skip, limit) {
   }
 }
 
-function openFile(id, reveal) {
-  call("open_file", { file: id, reveal }).catch((error) => console.error(error));
+function openFile(file, reveal) {
+  call("open_file", { base: file.base, file: file.id, reveal }).catch((error) => console.error(error));
 }
 
 // ---------------------------------------------------------------- Dialogs and keys
@@ -754,7 +1065,7 @@ $("problems-button").addEventListener("click", async () => {
     for (const file of group) {
       const item = el("li");
       item.append(el("span", file.name, "file-name"));
-      item.append(el("div", file.folder, "file-folder"));
+      item.append(el("div", whereIs(file), "file-folder"));
       items.append(item);
     }
     list.append(heading, items);
@@ -766,24 +1077,27 @@ $("problems-button").addEventListener("click", async () => {
 // A plain-text report that the user can paste in a message, to find what makes the
 // reading slow or fail. Only file names, sizes and times: never their content.
 $("copy-report").addEventListener("click", async () => {
-  const [status, report, files] = await Promise.all([call("status"), call("report"), call("problems")]);
+  const [report, files] = await Promise.all([call("report"), call("problems")]);
   if (!report) return;
   const lines = [];
   lines.push(`Mulu ${$("version").textContent} — ${navigator.userAgent}`);
-  lines.push(`Files: ${report.files}; read with text: ${report.indexed}; could not be read: ${files.length}; ${Math.round(report.megabytes)} MB`);
-  if (status.last_run !== null && status.last_run !== undefined) lines.push(`Last reading: ${status.last_run} s`);
+  if (report.last_run !== null && report.last_run !== undefined) lines.push(`Last reading: ${report.last_run} s`);
   lines.push(`Processors: ${report.processors} (cores: ${report.cores ?? "?"}); files read at once: ${report.background} in the background, ${report.full_speed} at full speed (${report.full_speed_used ? "used" : "not used"})`);
-  lines.push(`Time in the reading processes: ${Math.round(report.read_ms / 1000)} s; adding to the index: ${Math.round(report.index_ms / 1000)} s`);
-  const counts = new Map();
-  for (const file of files) {
-    const kind = file.problem ? (typeof file.problem === "string" ? file.problem : Object.keys(file.problem)[0]) : "?";
-    counts.set(kind, (counts.get(kind) || 0) + 1);
-  }
-  lines.push("Reasons: " + [...counts.entries()].map(([k, c]) => `${k} ${c}`).join(", "));
-  lines.push("Slowest files (read ms, index ms, MB, sections, path):");
-  for (const f of report.slowest) {
-    const kind = f.problem ? (typeof f.problem === "string" ? f.problem : Object.keys(f.problem)[0]) : "";
-    lines.push(`${f.read_ms}\t${f.index_ms}\t${f.megabytes.toFixed(1)}\t${f.sections}\t${f.path}${kind ? "\t" + kind : ""}`);
+  const kindOf = (problem) => problem ? (typeof problem === "string" ? problem : Object.keys(problem)[0]) : "";
+  for (const base of report.bases) {
+    const failed = files.filter((f) => f.base === base.base);
+    lines.push("");
+    lines.push(`Library ${base.base}`);
+    lines.push(`Files: ${base.files}; read with text: ${base.indexed}; could not be read: ${failed.length}; ${Math.round(base.megabytes)} MB`);
+    lines.push(`Time in the reading processes: ${Math.round(base.read_ms / 1000)} s; adding to the index: ${Math.round(base.index_ms / 1000)} s`);
+    const counts = new Map();
+    for (const file of failed) counts.set(kindOf(file.problem) || "?", (counts.get(kindOf(file.problem) || "?") || 0) + 1);
+    lines.push("Reasons: " + [...counts.entries()].map(([k, c]) => `${k} ${c}`).join(", "));
+    lines.push("Slowest files (read ms, index ms, MB, sections, path):");
+    for (const f of base.slowest) {
+      const kind = kindOf(f.problem);
+      lines.push(`${f.read_ms}\t${f.index_ms}\t${f.megabytes.toFixed(1)}\t${f.sections}\t${f.path}${kind ? "\t" + kind : ""}`);
+    }
   }
   try {
     await navigator.clipboard.writeText(lines.join("\n"));

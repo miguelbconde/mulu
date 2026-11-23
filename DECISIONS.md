@@ -281,6 +281,34 @@ Decided by the maintainer on 2026-11-21 (addendum 3, part A). Search operators a
 - **Comma not used for "either":** people who type `capitu, bentinho` usually mean both words.
 - **Release:** 0.2.2. Keyboard and screen-reader accessible like the rest.
 
+### D34. Several libraries, a survey before reading, and "whole computer" (developer)
+
+Version 0.2.1 completes section 1 of the instructions.
+
+- **Several libraries.** Each library keeps its own catalog and index, as before (D26); the app keeps the list. A search runs in every library and the results are put together by number of occurrences (a stable sort, so equal counts keep each library's order). Checks and readings are queued and run one library at a time, so two libraries never compete for the processor. Settings from 0.2.0 (one library) move over by themselves.
+- **No overlap.** A folder that is a library, or inside one, cannot become a library: its books would be found and counted twice, and the scope tree already narrows a search to it. A folder that holds a library can; the library inside stays a library of its own and is left out of the new one. Considered: refusing both cases (simpler, but "whole computer" would then be refused for anyone who already has a library in their home folder), and merging libraries (more work, and it would throw away the inner library's settings).
+- **Taking a library out** removes it from the list at once; its catalog and index (Mulu's own data) are deleted at the next start, when none of their files is in use (Windows does not let open files be deleted). The library's folder is never touched.
+- **Missing folder.** A library whose folder is not there (an unplugged disk, a network folder out of reach) is not checked: the check refuses to run, since every book would otherwise look removed and leave the index. Its books stay searchable and the panel says the folder was not found.
+- **Survey.** Before the first reading, Mulu walks the folder without reading any file and counts the book files by format and by folder (top two levels shown, each with its total), and the files only in the cloud. Formats and folders left out are kept with the library (in its catalog) and applied by the walk itself: a folder left out is never opened. Changing them later makes the next check add or remove the files concerned; a screen to change them after the first reading is not in 0.2.1.
+- **"Whole computer"** means the home folder and the other disks (instructions, section 1): on Windows, the user's profile folder and every drive other than the system drive; on macOS, the home folder and the disks in /Volumes (not the link to the system disk). Each place becomes its own library, so each can be refreshed, scoped and taken out on its own. Left out: hidden folders (on Windows by their attribute, which covers AppData and its temporary folders; on macOS by the hidden flag, which covers the Library folder; everywhere by a leading dot), and at the top of a disk the system and program folders (Windows, Program Files, ProgramData and the like). Considered: one library with several top folders; it would change the catalog's paths, which are relative to one folder, and gives nothing the separate libraries do not.
+- **Measured:** none on Windows yet. The survey is the same walk as a check (D31: 0.24 s for 100,000 files on Linux, warm disk cache); a first walk of a whole disk on Windows can take much longer, which the window shows as "Counting the books…".
+- **Tests:** overlap rules, survey counts, formats and folders left out and let in again, a missing library folder; end to end on Linux under Xvfb: two libraries searched together, scope per library, taking a library out, settings from 0.2.0, a missing folder, the welcome screen, "whole computer" with a folder and a place left out.
+
+### D35. Research projects (maintainer)
+
+Decided by the maintainer on 2026-11-21 (addendum 3, part B), with the note option (A). A **project** is a working folder inside Mulu, with subtopics in a tree, gathering three kinds of items without touching any file of the libraries:
+
+- **books:** references to library files, which follow a book renamed or moved (D31 fingerprints); the same book can be in several projects and subtopics;
+- **saved searches:** a query with its signs and scope, run again when the project opens, saying what is new since it was saved ("12 new occurrences since 21/11");
+- **passages:** occurrences chosen from the results, frozen with their text, book, page or chapter and date, kept even if the book changes or leaves the library;
+- each item can carry a short **note** by the researcher, exported with it.
+
+A project can be a search scope, exported (or one subtopic) as a reading-notes document in the formats of 0.3.0, and saved to a single file to back it up or open it on another computer. Deleting a project, subtopic or item goes to Mulu's own bin, from which it can be restored. No new third-party component.
+
+- **Storage:** projects span libraries, so they live in one database of their own in Mulu's data folder, referring to books by library and catalog id.
+- **Compared with (public pages, 2026-11-21, not measured):** AnyTXT Searcher offers nothing alike in the sources consulted. Zotero has nested collections, items in several collections, saved searches (not nestable, no manual items) and reader annotations, but works on its own reference library, into which books must be brought, and does not gather lists of occurrences of a term across books. Mulu builds projects on the library as it already is, from full-text search results with pages.
+- **Release:** 0.3 in two parts: 0.3.0 reading notes (fichamento), 0.3.1 research projects.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.
