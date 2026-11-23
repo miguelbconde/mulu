@@ -23,6 +23,10 @@ Test script: `docs/testing/v0.2.1.md`.
 
 - Release 0.2.0 was built but not published: its release notes file was missing. The checks of every proposal now fail when the version has no release notes or test script.
 
+### Security
+
+- Updated two components of the window framework after advisories published on 22 and 23 November: `url` 2.5.9 (RUSTSEC-2026-0592, a crash on deeply nested `blob:` addresses) and `cookie` 0.18.3 (RUSTSEC-2026-0594, repeated nonces in processes that fork). Mulu makes no network connections and its window shows only its own pages, so the risk to users was low; no behavior changes.
+
 ## [0.2.0] - 2026-11-21
 
 Test script: `docs/testing/v0.2.0.md`.
