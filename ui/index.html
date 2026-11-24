@@ -53,6 +53,58 @@
     </section>
 
     <section id="library" hidden>
+      <!-- Search signs, taught by an advanced search panel and a glossary (D33). -->
+      <p class="search-tools">
+        <button type="button" id="advanced-button" class="link small" aria-expanded="false" aria-controls="advanced" data-i18n="advancedOpen">Advanced search</button>
+        <span aria-hidden="true">·</span>
+        <button type="button" id="glossary-button" class="link small" aria-haspopup="dialog" data-i18n="howTo">How to search</button>
+      </p>
+      <form id="advanced" class="advanced" aria-labelledby="advanced-title" hidden>
+        <h2 id="advanced-title" class="label" data-i18n="advancedTitle">Advanced search</h2>
+        <p class="note small" data-i18n="advancedNote">Fill in one or more fields.</p>
+        <div class="adv-grid">
+          <label for="adv-all" data-i18n="advAll">All these words</label>
+          <input id="adv-all" type="text" autocomplete="off" spellcheck="false">
+          <code class="sign" aria-hidden="true">a b</code>
+
+          <label for="adv-phrase" data-i18n="advPhrase">This exact phrase</label>
+          <input id="adv-phrase" type="text" autocomplete="off" spellcheck="false">
+          <code class="sign" aria-hidden="true">"…"</code>
+
+          <label for="adv-any" data-i18n="advAny">Any of these words</label>
+          <input id="adv-any" type="text" autocomplete="off" spellcheck="false">
+          <code class="sign" aria-hidden="true">a | b</code>
+
+          <label for="adv-none" data-i18n="advNone">None of these words</label>
+          <input id="adv-none" type="text" autocomplete="off" spellcheck="false">
+          <code class="sign" aria-hidden="true">-a</code>
+
+          <label for="adv-near" data-i18n="advNear">These words near each other</label>
+          <span class="adv-near">
+            <input id="adv-near" type="text" autocomplete="off" spellcheck="false">
+            <label for="adv-within" class="adv-within"><span data-i18n="advWithin">within</span>
+              <select id="adv-within">
+                <option>5</option><option selected>10</option><option>25</option><option>50</option>
+              </select>
+              <span data-i18n="advWords">words</span></label>
+          </span>
+          <code class="sign" aria-hidden="true">"a b"~N</code>
+
+          <label for="adv-prefix" data-i18n="advPrefix">Words beginning with</label>
+          <input id="adv-prefix" type="text" autocomplete="off" spellcheck="false">
+          <code class="sign" aria-hidden="true">a*</code>
+        </div>
+        <fieldset class="adv-where">
+          <legend data-i18n="advWhere">Where to look</legend>
+          <label><input type="radio" name="adv-where" value="text" checked> <span data-i18n="advInText">In the text and in file names</span></label>
+          <label><input type="radio" name="adv-where" value="name"> <span data-i18n="advInName">In file names only</span> <code class="sign" aria-hidden="true">name:</code></label>
+        </fieldset>
+        <p class="dialog-actions">
+          <button type="reset" class="link" data-i18n="advClear">Clear</button>
+          <button type="submit" class="primary" data-i18n="searchButton">Search</button>
+        </p>
+      </form>
+
       <div id="indexing" class="indexing" hidden>
         <progress id="indexing-bar" max="1" value="0" aria-labelledby="indexing-text"></progress>
         <p id="indexing-text" class="note" aria-live="polite"></p>
@@ -126,6 +178,20 @@
       <button type="button" class="link close" data-i18n="cancel">Cancel</button>
       <button type="button" id="remove-confirm" class="primary" data-i18n="removeConfirm">Take it out</button>
     </p>
+  </dialog>
+
+  <dialog id="glossary-dialog" aria-labelledby="glossary-title">
+    <div class="dialog-head">
+      <h2 id="glossary-title" data-i18n="glossaryTitle">How to search</h2>
+      <button type="button" class="close close-x" data-i18n-title="close" title="Close">×</button>
+    </div>
+    <p class="note" data-i18n="glossaryNote">Signs can be combined. Click an example to run it.</p>
+    <table class="glossary">
+      <thead><tr><th scope="col" data-i18n="glossarySign">Sign</th><th scope="col" data-i18n="glossaryMeaning">Finds</th><th scope="col" data-i18n="glossaryExample">Example</th></tr></thead>
+      <tbody id="glossary-body"></tbody>
+    </table>
+    <p class="note small" data-i18n="glossaryCaps">Words in capitals are searched as words.</p>
+    <p class="dialog-actions"><button type="button" class="primary close" data-i18n="close">Close</button></p>
   </dialog>
 
   <dialog id="help-dialog" aria-labelledby="help-title">

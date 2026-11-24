@@ -67,7 +67,40 @@ const TEXTS = {
     free: "Free software, under the GNU GPL, version 3 or later.",
     libraryLabel: "Library",
     hint1: "Type a word, a name or a concept and press Enter.",
-    hint2: "Use quotes for an exact phrase (\"olhos de ressaca\") and a star for the beginning of a word (melancol*).",
+    hint2: "Use quotes for an exact phrase (\"call me ishmael\"), a star for the beginning of a word (melanchol*), and the other signs in \"How to search\".",
+    advancedOpen: "Advanced search",
+    howTo: "How to search",
+    advancedTitle: "Advanced search",
+    advancedNote: "Fill in one or more fields. The search box shows the signs that do the same; you can also type them there yourself.",
+    advAll: "All these words",
+    advPhrase: "This exact phrase",
+    advAny: "Any of these words",
+    advNone: "None of these words",
+    advNear: "These words near each other",
+    advWithin: "within",
+    advWords: "words",
+    advPrefix: "Words beginning with",
+    advWhere: "Where to look",
+    advInText: "In the text and in file names",
+    advInName: "In file names only",
+    advClear: "Clear",
+    glossaryTitle: "How to search",
+    glossaryNote: "Signs can be combined. Click an example to run it.",
+    glossarySign: "Sign",
+    glossaryMeaning: "Finds",
+    glossaryExample: "Example",
+    glossary: [
+      ["a b", "files with all these words, anywhere in the file", "ahab whale"],
+      ["\"…\"", "this exact phrase; inside quotes every character is text", "\"call me ishmael\""],
+      ["-a", "files without this word (the minus sign right before the word)", "ahab -whale"],
+      ["a | b", "files with either word", "ahab | starbuck"],
+      ["\"a b\"~N", "the words within N words of each other, in any order", "\"ahab whale\"~10"],
+      ["a*", "every word that begins this way", "melanchol*"],
+      ["( )", "groups signs together", "melville (ahab | starbuck)"],
+      ["name:a", "in the file name only", "name:melville"],
+    ],
+    glossaryCaps: "Words in capitals, such as AND, OR or NOT, are searched as words.",
+    onlyWithout: "A search made only of words to leave out (with -) finds nothing: add a word to look for.",
     version: "Version",
     keys: "Ctrl+F: search · Enter or double click: open the file",
     problemsTitle: "Files that could not be read",
@@ -110,6 +143,7 @@ const TEXTS = {
         "Accents and capital letters do not matter: acao finds Ação.",
         "Between quotes, an exact phrase: \"olhos de ressaca\".",
         "A star at the end finds every word that begins that way: melancol* finds melancolia, melancólico, melancholy.",
+        "Other signs: -word leaves out the files with that word; a | b finds either; \"a b\"~10 finds the words within 10 words of each other; ( ) groups; name: looks in file names only. All of them, with examples, under \"How to search\", next to the search box. \"Advanced search\" writes the signs for you.",
         "Chinese and Japanese: type the characters; Mulu finds exactly that sequence.",
       ]],
       ["Libraries and scope", [
@@ -192,7 +226,40 @@ const TEXTS = {
     free: "Software livre, sob a GPL da GNU, versão 3 ou posterior.",
     libraryLabel: "Biblioteca",
     hint1: "Digite uma palavra, um nome ou um conceito e tecle Enter.",
-    hint2: "Use aspas para uma frase exata (\"olhos de ressaca\") e um asterisco para o começo de uma palavra (melancol*).",
+    hint2: "Use aspas para uma frase exata (\"olhos de ressaca\"), um asterisco para o começo de uma palavra (melancol*) e os outros sinais de \"Como buscar\".",
+    advancedOpen: "Busca avançada",
+    howTo: "Como buscar",
+    advancedTitle: "Busca avançada",
+    advancedNote: "Preencha um ou mais campos. A caixa de pesquisa mostra os sinais que fazem o mesmo; você também pode digitá-los ali.",
+    advAll: "Todas estas palavras",
+    advPhrase: "Esta frase exata",
+    advAny: "Qualquer uma destas palavras",
+    advNone: "Nenhuma destas palavras",
+    advNear: "Estas palavras perto umas das outras",
+    advWithin: "a até",
+    advWords: "palavras",
+    advPrefix: "Palavras que começam com",
+    advWhere: "Onde procurar",
+    advInText: "No texto e no nome dos arquivos",
+    advInName: "Só no nome dos arquivos",
+    advClear: "Limpar",
+    glossaryTitle: "Como buscar",
+    glossaryNote: "Os sinais podem ser combinados. Clique num exemplo para executá-lo.",
+    glossarySign: "Sinal",
+    glossaryMeaning: "Encontra",
+    glossaryExample: "Exemplo",
+    glossary: [
+      ["a b", "arquivos com todas estas palavras, em qualquer lugar do arquivo", "capitu bentinho"],
+      ["\"…\"", "esta frase exata; entre aspas, todo caractere é texto", "\"olhos de ressaca\""],
+      ["-a", "arquivos sem esta palavra (o sinal de menos colado à palavra)", "capitu -bentinho"],
+      ["a | b", "arquivos com uma ou outra palavra", "capitu | bentinho"],
+      ["\"a b\"~N", "as palavras a até N palavras umas das outras, em qualquer ordem", "\"capitu olhos\"~10"],
+      ["a*", "todas as palavras que começam assim", "melancol*"],
+      ["( )", "agrupa sinais", "machado (capitu | bentinho)"],
+      ["name:a", "só no nome do arquivo", "name:assis"],
+    ],
+    glossaryCaps: "Palavras em maiúsculas, como E, OU ou NÃO, são procuradas como palavras.",
+    onlyWithout: "Uma pesquisa feita só de palavras a excluir (com -) não encontra nada: acrescente uma palavra a procurar.",
     version: "Versão",
     keys: "Ctrl+F: pesquisar · Enter ou duplo clique: abrir o arquivo",
     problemsTitle: "Arquivos que não puderam ser lidos",
@@ -235,6 +302,7 @@ const TEXTS = {
         "Acentos e maiúsculas não importam: acao encontra Ação.",
         "Entre aspas, uma frase exata: \"olhos de ressaca\".",
         "Um asterisco no fim encontra todas as palavras que começam assim: melancol* encontra melancolia, melancólico, melancholy.",
+        "Outros sinais: -palavra deixa de fora os arquivos com essa palavra; a | b encontra uma ou outra; \"a b\"~10 encontra as palavras a até 10 palavras uma da outra; ( ) agrupa; name: procura só no nome dos arquivos. Todos, com exemplos, em \"Como buscar\", junto à caixa de pesquisa. A \"Busca avançada\" escreve os sinais por você.",
         "Chinês e japonês: digite os caracteres; o Mulu encontra exatamente essa sequência.",
       ]],
       ["Bases e escopo", [
@@ -317,7 +385,40 @@ const TEXTS = {
     free: "Software libre, bajo la GPL de GNU, versión 3 o posterior.",
     libraryLabel: "Biblioteca",
     hint1: "Escriba una palabra, un nombre o un concepto y pulse Intro.",
-    hint2: "Use comillas para una frase exacta (\"olhos de ressaca\") y un asterisco para el comienzo de una palabra (melancol*).",
+    hint2: "Use comillas para una frase exacta (\"en un lugar de la mancha\"), un asterisco para el comienzo de una palabra (melancol*) y los demás signos de \"Cómo buscar\".",
+    advancedOpen: "Búsqueda avanzada",
+    howTo: "Cómo buscar",
+    advancedTitle: "Búsqueda avanzada",
+    advancedNote: "Complete uno o más campos. La caja de búsqueda muestra los signos que hacen lo mismo; también puede escribirlos allí.",
+    advAll: "Todas estas palabras",
+    advPhrase: "Esta frase exacta",
+    advAny: "Cualquiera de estas palabras",
+    advNone: "Ninguna de estas palabras",
+    advNear: "Estas palabras cerca unas de otras",
+    advWithin: "a hasta",
+    advWords: "palabras",
+    advPrefix: "Palabras que empiezan por",
+    advWhere: "Dónde buscar",
+    advInText: "En el texto y en el nombre de los archivos",
+    advInName: "Solo en el nombre de los archivos",
+    advClear: "Borrar",
+    glossaryTitle: "Cómo buscar",
+    glossaryNote: "Los signos se pueden combinar. Haga clic en un ejemplo para ejecutarlo.",
+    glossarySign: "Signo",
+    glossaryMeaning: "Encuentra",
+    glossaryExample: "Ejemplo",
+    glossary: [
+      ["a b", "archivos con todas estas palabras, en cualquier parte del archivo", "quijote sancho"],
+      ["\"…\"", "esta frase exacta; entre comillas, todo carácter es texto", "\"en un lugar de la mancha\""],
+      ["-a", "archivos sin esta palabra (el signo menos pegado a la palabra)", "quijote -sancho"],
+      ["a | b", "archivos con una u otra palabra", "dulcinea | aldonza"],
+      ["\"a b\"~N", "las palabras a hasta N palabras unas de otras, en cualquier orden", "\"quijote molinos\"~10"],
+      ["a*", "todas las palabras que empiezan así", "melancol*"],
+      ["( )", "agrupa signos", "cervantes (quijote | sancho)"],
+      ["name:a", "solo en el nombre del archivo", "name:cervantes"],
+    ],
+    glossaryCaps: "Las palabras en mayúsculas, como Y, O o NO, se buscan como palabras.",
+    onlyWithout: "Una búsqueda hecha solo de palabras que excluir (con -) no encuentra nada: añada una palabra que buscar.",
     version: "Versión",
     keys: "Ctrl+F: buscar · Intro o doble clic: abrir el archivo",
     problemsTitle: "Archivos que no se pudieron leer",
@@ -360,6 +461,7 @@ const TEXTS = {
         "Los acentos y las mayúsculas no importan: accion encuentra Acción.",
         "Entre comillas, una frase exacta: \"olhos de ressaca\".",
         "Un asterisco al final encuentra todas las palabras que empiezan así: melancol* encuentra melancolía, melancólico, melancholy.",
+        "Otros signos: -palabra deja fuera los archivos con esa palabra; a | b encuentra una u otra; \"a b\"~10 encuentra las palabras a hasta 10 palabras una de otra; ( ) agrupa; name: busca solo en el nombre de los archivos. Todos, con ejemplos, en \"Cómo buscar\", junto a la caja de búsqueda. La \"Búsqueda avanzada\" escribe los signos por usted.",
         "Chino y japonés: escriba los caracteres; Mulu encuentra exactamente esa secuencia.",
       ]],
       ["Bibliotecas y alcance", [
@@ -946,6 +1048,83 @@ $("search-form").addEventListener("submit", (event) => {
   search($("query").value);
 });
 
+// ---------------------------------------------------------------- Search signs (D33)
+
+// The advanced search panel writes the signs into the search box as its fields are
+// filled, so that it teaches them; the box stays editable.
+$("advanced-button").addEventListener("click", () => {
+  const panel = $("advanced");
+  panel.hidden = !panel.hidden;
+  $("advanced-button").setAttribute("aria-expanded", String(!panel.hidden));
+  if (!panel.hidden) $("adv-all").focus();
+});
+
+/** The words of a field, without the quotes and signs that the panel adds itself. */
+function fieldWords(id, strip = /["“”()|]/g) {
+  return $(id).value.replace(strip, " ").split(/\s+/).filter(Boolean);
+}
+
+function composeQuery() {
+  const parts = [];
+  parts.push(...fieldWords("adv-all"));
+  const phrase = fieldWords("adv-phrase").join(" ");
+  if (phrase) parts.push(`"${phrase}"`);
+  const any = fieldWords("adv-any");
+  let anyPart = null;
+  if (any.length === 1) parts.push(any[0]);
+  if (any.length > 1) {
+    anyPart = parts.length;
+    parts.push(any.join(" | "));
+  }
+  const near = fieldWords("adv-near");
+  if (near.length === 1) parts.push(near[0]);
+  if (near.length > 1) parts.push(`"${near.join(" ")}"~${$("adv-within").value}`);
+  for (const word of fieldWords("adv-prefix")) parts.push(word.replace(/\*+$/, "") + "*");
+  for (const word of fieldWords("adv-none")) parts.push("-" + word.replace(/^-+/, ""));
+  // "Either" is grouped when other parts are around, so that the grouping is visible.
+  if (anyPart !== null && parts.length > 1) parts[anyPart] = `(${parts[anyPart]})`;
+  let query = parts.join(" ");
+  const inName = document.querySelector('input[name="adv-where"]:checked').value === "name";
+  if (inName && query) query = parts.length === 1 && !/\s/.test(query) ? `name:${query}` : `name:(${query})`;
+  $("query").value = query;
+}
+
+$("advanced").addEventListener("input", composeQuery);
+$("advanced").addEventListener("change", composeQuery);
+$("advanced").addEventListener("reset", () => setTimeout(composeQuery));
+$("advanced").addEventListener("submit", (event) => {
+  event.preventDefault();
+  composeQuery();
+  search($("query").value);
+});
+
+(function buildGlossary() {
+  const body = $("glossary-body");
+  for (const [sign, meaning, example] of T.glossary) {
+    const button = el("button", example, "example");
+    button.type = "button";
+    button.addEventListener("click", () => {
+      $("glossary-dialog").close();
+      $("query").value = example;
+      search(example);
+      $("query").focus();
+    });
+    const exampleCell = el("td");
+    exampleCell.append(button);
+    const row = el("tr");
+    row.append(el("td", sign, "sign"), el("td", meaning), exampleCell);
+    body.append(row);
+  }
+})();
+
+$("glossary-button").addEventListener("click", () => showDialog($("glossary-dialog")));
+
+/** Whether every word of the search is one to leave out, which finds nothing. */
+function onlyWithout(query) {
+  const words = query.replace(/"[^"]*"/g, "x").split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.every((w) => /^\(*-[^\s-]/.test(w));
+}
+
 async function search(query) {
   query = query.trim();
   currentQuery = query;
@@ -962,6 +1141,7 @@ async function search(query) {
 
   if (answer.files.length === 0 && answer.by_name.length === 0) {
     results.append(el("p", T.noResults(`“${query}”`), "summary"));
+    if (onlyWithout(query)) results.append(el("p", T.onlyWithout, "note"));
     return;
   }
   if (answer.files.length > 0) {
