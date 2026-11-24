@@ -63,13 +63,17 @@ pub fn near_occurrences(text: &str, near: &[Search], within: u32) -> Vec<(usize,
             _ => Vec::new(),
         })
         .collect();
+    let positions: Vec<Vec<u32>> = found
+        .iter()
+        .map(|list| list.iter().map(|&(p, _, _)| p).collect())
+        .collect();
     let mut out = Vec::new();
     for (i, list) in found.iter().enumerate() {
         for &(p, start, end) in list {
-            let close = found
+            let close = positions
                 .iter()
                 .enumerate()
-                .all(|(j, other)| j == i || other.iter().any(|&(q, _, _)| q.abs_diff(p) <= within));
+                .all(|(j, other)| j == i || crate::has_near(other, p, within));
             if close {
                 out.push((start, end));
             }

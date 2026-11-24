@@ -34,7 +34,16 @@ fn main() {
         "{pages} pages indexed in {:.1} s",
         t.elapsed().as_secs_f64()
     );
-    for q in ["的", "方鸿渐", "\"方鸿渐笑道\"", "鸿渐 柔嘉", "zzz"] {
+    // Searches to time: MULU_QUERIES, separated by ";", or a Chinese default set.
+    let queries: Vec<String> = std::env::var("MULU_QUERIES").map_or_else(
+        |_| {
+            ["的", "方鸿渐", "\"方鸿渐笑道\"", "鸿渐 柔嘉", "zzz"]
+                .map(String::from)
+                .to_vec()
+        },
+        |v| v.split(';').map(String::from).collect(),
+    );
+    for q in &queries {
         let t = Instant::now();
         let r = index.search(q).unwrap();
         let counted = t.elapsed().as_secs_f64() * 1000.0;

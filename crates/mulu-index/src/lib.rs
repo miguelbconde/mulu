@@ -424,8 +424,9 @@ fn phrase_positions(
     out
 }
 
-/// How many occurrences, among several lists of positions, have an occurrence of
-/// every other list within `within` positions. The same rule cuts the passages.
+/// How many occurrences, among several lists of positions (each sorted), have an
+/// occurrence of every other list within `within` positions. The same rule cuts the
+/// passages ([`near_occurrences`]).
 pub(crate) fn near_count(lists: &[&Vec<u32>], within: u32) -> u32 {
     let mut count = 0u32;
     for (i, list) in lists.iter().enumerate() {
@@ -433,13 +434,22 @@ pub(crate) fn near_count(lists: &[&Vec<u32>], within: u32) -> u32 {
             let close = lists
                 .iter()
                 .enumerate()
-                .all(|(j, other)| j == i || other.iter().any(|&q| q.abs_diff(p) <= within));
+                .all(|(j, other)| j == i || has_near(other, p, within));
             if close {
                 count += 1;
             }
         }
     }
     count
+}
+
+/// Whether the sorted list has a position within `within` of `p`.
+pub(crate) fn has_near(sorted: &[u32], p: u32, within: u32) -> bool {
+    let from = p.saturating_sub(within);
+    let at = sorted.partition_point(|&q| q < from);
+    sorted
+        .get(at)
+        .is_some_and(|&q| q <= p.saturating_add(within))
 }
 
 impl LibraryIndex {

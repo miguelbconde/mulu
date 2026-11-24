@@ -4,6 +4,17 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-24
+
+Test script: `docs/testing/v0.2.2.md`.
+
+### Added
+
+- Search signs (D33, D36): `"..."` exact phrase, `-word` without, `a | b` either, `"a b"~10` within 10 words of each other, `melancol*` word beginning, `( )` grouping, `name:` in the file name only. Words in capitals are ordinary words.
+- "Advanced search": a panel with one field for each sign, which writes the signs into the search box as it is filled, so that they can be learned.
+- "How to search": a glossary of the signs, with examples that run on click.
+- Pause and resume the reading. The pause survives closing Mulu; what was read stays searchable.
+
 ### Fixed
 
 - The top folder of each library opens and closes with an arrow, like the folders inside it, and starts closed, so a long list of folders no longer fills the panel. Reported in the 0.2.1 test.
