@@ -4,18 +4,19 @@
 //! without fixed pages) is stored as one entry, with the file it belongs to. A search
 //! returns each file once, with every occurrence and the passage around it.
 //!
-//! Search rules for version 0.1 (project instructions, section 5):
-//! - several words without quotes: files that contain all of them, anywhere;
-//! - text between quotes: that exact phrase;
-//! - case and accents are ignored; Chinese and other unspaced scripts match exactly
-//!   the characters typed (decisions D13 and D15).
+//! Search rules (project instructions, section 5, and decision D33): several words
+//! find the files that contain all of them, anywhere; quotes, `-`, `|`, `~N`, `*`,
+//! brackets and `name:` are read by [`mulu_text::query`]. Whether a file matches is
+//! decided file by file; occurrences are counted page by page. Case and accents are
+//! ignored; Chinese and other unspaced scripts match exactly the characters typed
+//! (decisions D13 and D15).
 
 mod passages;
 mod tokenizer;
 
-pub use passages::{Passage, occurrences, passage};
+pub use passages::{Passage, near_occurrences, occurrences, passage};
 
-use mulu_text::Search;
+use mulu_text::{Query, Search};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use tantivy::directory::MmapDirectory;
@@ -163,66 +164,53 @@ impl LibraryIndex {
     /// Runs a search. Every matching file is returned once, with its number of
     /// occurrences, the files with the most occurrences first. Counting uses only the
     /// index, so it stays fast for common words; passages are cut later, on demand,
-    /// with [`LibraryIndex::passages`].
+    /// with [`LibraryIndex::passages`]. Parts asked for in file names (`name:`) find
+    /// nothing here; see [`LibraryIndex::search_with_names`].
     pub fn search(&self, query: &str) -> Result<Results> {
-        let parts: Vec<Search> = split_query(query)
-            .iter()
-            .map(|part| mulu_text::search(part))
-            .filter(|s| *s != Search::Nothing)
-            .collect();
+        self.search_with_names(query, &|_| HashSet::new())
+    }
+
+    /// Runs a search; `names` answers the parts asked for in file names (`name:`),
+    /// which only the catalog knows, with the identifiers of the matching files.
+    /// Files found only through names come back with no occurrences.
+    pub fn search_with_names(
+        &self,
+        query: &str,
+        names: &dyn Fn(&Query) -> HashSet<u64>,
+    ) -> Result<Results> {
+        let tree = mulu_text::parse(query);
         let searcher = self.reader.searcher();
-        if parts.is_empty() {
-            return Ok(Results {
-                parts,
-                searcher,
-                files: Vec::new(),
-            });
-        }
+        let mut run = Run {
+            index: self,
+            searcher: &searcher,
+            names,
+            leaves: Vec::new(),
+        };
+        let found = if tree.is_empty() {
+            FileHits::new()
+        } else {
+            run.eval(&tree)?
+        };
+        let leaves = run.leaves;
 
-        // For each part, the occurrences per page, grouped by file.
-        let mut per_part: Vec<HashMap<u64, Vec<PageHits>>> = Vec::new();
-        for part in &parts {
-            let mut by_file: HashMap<u64, Vec<PageHits>> = HashMap::new();
-            for (segment_ord, segment) in searcher.segment_readers().iter().enumerate() {
-                let file_ids = segment.fast_fields().u64("file_id")?;
-                let pages = segment.fast_fields().u64("page")?;
-                let alive = segment.alive_bitset();
-                for (doc, count) in self.count_in_segment(segment, part)? {
-                    if alive.is_some_and(|a| a.is_deleted(doc)) {
-                        continue;
-                    }
-                    let (Some(file), Some(page)) = (file_ids.first(doc), pages.first(doc)) else {
-                        continue;
-                    };
-                    by_file.entry(file).or_default().push(PageHits {
-                        page: u32::try_from(page).unwrap_or(u32::MAX),
-                        count,
-                        address: DocAddress::new(u32::try_from(segment_ord).unwrap_or(0), doc),
-                    });
-                }
-            }
-            per_part.push(by_file);
-        }
-
-        // Files that contain every part of the query.
-        let mut files: Vec<u64> = per_part[0].keys().copied().collect();
-        files.retain(|f| per_part[1..].iter().all(|by_file| by_file.contains_key(f)));
-
-        let mut results: Vec<FileResult> = files
+        let mut results: Vec<FileResult> = found
             .into_iter()
-            .map(|file_id| {
-                let mut pages: BTreeMap<(u32, DocAddress), u32> = BTreeMap::new();
-                for by_file in &per_part {
-                    for p in &by_file[&file_id] {
-                        *pages.entry((p.page, p.address)).or_default() += p.count;
+            .map(|(file_id, hits)| {
+                let mut pages: BTreeMap<(u32, DocAddress), (u32, Vec<u16>)> = BTreeMap::new();
+                for h in hits {
+                    let entry = pages.entry((h.page, h.address)).or_default();
+                    entry.0 += h.count;
+                    if !entry.1.contains(&h.leaf) {
+                        entry.1.push(h.leaf);
                     }
                 }
                 let pages: Vec<PageHits> = pages
                     .into_iter()
-                    .map(|((page, address), count)| PageHits {
+                    .map(|((page, address), (count, leaves))| PageHits {
                         page,
                         count,
                         address,
+                        leaves,
                     })
                     .collect();
                 let count = pages.iter().map(|p| p.count).sum();
@@ -235,7 +223,7 @@ impl LibraryIndex {
             .collect();
         results.sort_by(|a, b| b.count.cmp(&a.count).then(a.file_id.cmp(&b.file_id)));
         Ok(Results {
-            parts,
+            leaves,
             searcher,
             files: results,
         })
@@ -269,10 +257,14 @@ impl LibraryIndex {
                 .get_first(self.fields.label)
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            let mut ranges: Vec<(usize, usize)> = results
-                .parts
+            let mut ranges: Vec<(usize, usize)> = page
+                .leaves
                 .iter()
-                .flat_map(|part| occurrences(text, part))
+                .filter_map(|&leaf| results.leaves.get(usize::from(leaf)))
+                .flat_map(|leaf| match leaf {
+                    Leaf::Term(search) => occurrences(text, search),
+                    Leaf::Near(terms, within) => near_occurrences(text, terms, *within),
+                })
                 .collect();
             ranges.sort_unstable();
             for (start, end) in ranges {
@@ -326,41 +318,138 @@ impl LibraryIndex {
             return Ok(out);
         }
 
-        // Phrase: walk the documents that contain every term, then count the
-        // positions where each term sits at its expected offset from the first.
-        let mut positions: Vec<u32> = Vec::new();
-        let mut candidates: Vec<u32> = Vec::new();
-        let mut doc = postings[0].1.doc();
-        'docs: while doc != TERMINATED {
-            for (_, p) in postings.iter_mut() {
-                let found = p.seek(doc);
-                if found != doc {
-                    doc = found;
-                    continue 'docs;
-                }
+        Ok(phrase_positions(postings)
+            .into_iter()
+            .map(|(doc, at)| (doc, u32::try_from(at.len()).unwrap_or(u32::MAX)))
+            .collect())
+    }
+
+    /// Where a word or phrase starts in each page of a segment, as word positions.
+    fn positions_in_segment(
+        &self,
+        segment: &SegmentReader,
+        terms: &[(u32, String)],
+    ) -> Result<Vec<(DocId, Vec<u32>)>> {
+        let inverted = segment.inverted_index(self.fields.text)?;
+        let mut postings = Vec::new();
+        for (offset, text) in terms {
+            match inverted.read_postings(
+                &Term::from_field_text(self.fields.text, text),
+                IndexRecordOption::WithFreqsAndPositions,
+            )? {
+                Some(p) => postings.push((*offset, p)),
+                None => return Ok(Vec::new()),
             }
-            let (first_offset, first) = &mut postings[0];
-            let first_offset = *first_offset;
-            first.positions(&mut candidates);
-            for c in candidates.iter_mut() {
-                *c = c.wrapping_sub(first_offset);
-            }
-            for (offset, p) in postings[1..].iter_mut() {
-                p.positions(&mut positions);
-                let wanted: HashSet<u32> =
-                    positions.iter().map(|x| x.wrapping_sub(*offset)).collect();
-                candidates.retain(|c| wanted.contains(c));
-                if candidates.is_empty() {
-                    break;
-                }
-            }
-            if !candidates.is_empty() {
-                out.push((doc, u32::try_from(candidates.len()).unwrap_or(u32::MAX)));
-            }
-            doc = postings[0].1.advance();
         }
+        Ok(phrase_positions(postings))
+    }
+
+    /// Occurrences of several terms near each other in each page of a segment: an
+    /// occurrence counts when every other term has one within `within` words of it.
+    fn count_near(
+        &self,
+        segment: &SegmentReader,
+        terms: &[Search],
+        within: u32,
+    ) -> Result<Vec<(DocId, u32)>> {
+        let mut per_term: Vec<HashMap<DocId, Vec<u32>>> = Vec::new();
+        for term in terms {
+            let Search::Phrase(words) = term else {
+                return Ok(Vec::new());
+            };
+            per_term.push(
+                self.positions_in_segment(segment, words)?
+                    .into_iter()
+                    .collect(),
+            );
+        }
+        let Some((first, rest)) = per_term.split_first() else {
+            return Ok(Vec::new());
+        };
+        let mut out = Vec::new();
+        for doc in first.keys() {
+            let lists: Option<Vec<&Vec<u32>>> = std::iter::once(first.get(doc))
+                .chain(rest.iter().map(|m| m.get(doc)))
+                .collect();
+            let Some(lists) = lists else { continue };
+            let count = near_count(&lists, within);
+            if count > 0 {
+                out.push((*doc, count));
+            }
+        }
+        out.sort_unstable();
         Ok(out)
     }
+}
+
+/// Walks the pages that contain every term of a phrase and returns, for each, the
+/// positions where each term sits at its expected offset from the first.
+fn phrase_positions(
+    mut postings: Vec<(u32, tantivy::postings::SegmentPostings)>,
+) -> Vec<(DocId, Vec<u32>)> {
+    let mut out = Vec::new();
+    let mut positions: Vec<u32> = Vec::new();
+    let mut candidates: Vec<u32> = Vec::new();
+    if postings.is_empty() {
+        return out;
+    }
+    let mut doc = postings[0].1.doc();
+    'docs: while doc != TERMINATED {
+        for (_, p) in postings.iter_mut() {
+            let found = p.seek(doc);
+            if found != doc {
+                doc = found;
+                continue 'docs;
+            }
+        }
+        let (first_offset, first) = &mut postings[0];
+        let first_offset = *first_offset;
+        first.positions(&mut candidates);
+        for c in candidates.iter_mut() {
+            *c = c.wrapping_sub(first_offset);
+        }
+        for (offset, p) in postings[1..].iter_mut() {
+            p.positions(&mut positions);
+            let wanted: HashSet<u32> = positions.iter().map(|x| x.wrapping_sub(*offset)).collect();
+            candidates.retain(|c| wanted.contains(c));
+            if candidates.is_empty() {
+                break;
+            }
+        }
+        if !candidates.is_empty() {
+            out.push((doc, candidates.clone()));
+        }
+        doc = postings[0].1.advance();
+    }
+    out
+}
+
+/// How many occurrences, among several lists of positions (each sorted), have an
+/// occurrence of every other list within `within` positions. The same rule cuts the
+/// passages ([`near_occurrences`]).
+pub(crate) fn near_count(lists: &[&Vec<u32>], within: u32) -> u32 {
+    let mut count = 0u32;
+    for (i, list) in lists.iter().enumerate() {
+        for &p in list.iter() {
+            let close = lists
+                .iter()
+                .enumerate()
+                .all(|(j, other)| j == i || has_near(other, p, within));
+            if close {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+/// Whether the sorted list has a position within `within` of `p`.
+pub(crate) fn has_near(sorted: &[u32], p: u32, within: u32) -> bool {
+    let from = p.saturating_sub(within);
+    let at = sorted.partition_point(|&q| q < from);
+    sorted
+        .get(at)
+        .is_some_and(|&q| q <= p.saturating_add(within))
 }
 
 impl LibraryIndex {
@@ -391,7 +480,8 @@ impl LibraryIndex {
 
 /// The outcome of a search, valid until the next one.
 pub struct Results {
-    parts: Vec<Search>,
+    /// What was looked for in the text, numbered as in [`PageHits::leaves`].
+    leaves: Vec<Leaf>,
     searcher: tantivy::Searcher,
     pub files: Vec<FileResult>,
 }
@@ -403,20 +493,135 @@ impl Results {
     }
 }
 
+/// One thing looked for in the text, whose occurrences are counted and shown.
+#[derive(Debug, Clone)]
+enum Leaf {
+    Term(Search),
+    Near(Vec<Search>, u32),
+}
+
 /// A file that matches the search.
 #[derive(Debug, Clone)]
 pub struct FileResult {
     pub file_id: u64,
-    /// Number of occurrences in the whole file.
+    /// Number of occurrences in the whole file; 0 when only the name matched.
     pub count: u32,
     pages: Vec<PageHits>,
 }
 
-#[derive(Debug, Clone, Copy)]
+/// The occurrences in one page, and which leaves of the search they come from.
+#[derive(Debug, Clone)]
 struct PageHits {
     page: u32,
     count: u32,
     address: DocAddress,
+    leaves: Vec<u16>,
+}
+
+/// Occurrences of one leaf in one page.
+#[derive(Debug, Clone, Copy)]
+struct LeafHits {
+    page: u32,
+    count: u32,
+    address: DocAddress,
+    leaf: u16,
+}
+
+/// For each matching file, its occurrences.
+type FileHits = HashMap<u64, Vec<LeafHits>>;
+
+/// One search being evaluated.
+struct Run<'a> {
+    index: &'a LibraryIndex,
+    searcher: &'a tantivy::Searcher,
+    names: &'a dyn Fn(&Query) -> HashSet<u64>,
+    leaves: Vec<Leaf>,
+}
+
+impl Run<'_> {
+    fn eval(&mut self, query: &Query) -> Result<FileHits> {
+        match query {
+            Query::Term(search) => self.leaf(Leaf::Term(search.clone())),
+            Query::Near(terms, within) => self.leaf(Leaf::Near(terms.clone(), *within)),
+            Query::Name(inner) => Ok((self.names)(inner)
+                .into_iter()
+                .map(|f| (f, Vec::new()))
+                .collect()),
+            // "Without" alone asks for nothing to be found.
+            Query::Not(_) => Ok(FileHits::new()),
+            Query::All(parts) => {
+                let mut found: Option<FileHits> = None;
+                for part in parts.iter().filter(|p| !matches!(p, Query::Not(_))) {
+                    let hits = self.eval(part)?;
+                    found = Some(match found {
+                        None => hits,
+                        Some(mut so_far) => {
+                            so_far.retain(|f, _| hits.contains_key(f));
+                            for (f, more) in hits {
+                                if let Some(list) = so_far.get_mut(&f) {
+                                    list.extend(more);
+                                }
+                            }
+                            so_far
+                        }
+                    });
+                    if found.as_ref().is_some_and(HashMap::is_empty) {
+                        return Ok(FileHits::new());
+                    }
+                }
+                let mut found = found.unwrap_or_default();
+                for part in parts {
+                    if let Query::Not(inner) = part {
+                        let leaves = self.leaves.len();
+                        let out = self.eval(inner)?;
+                        // What is excluded is never shown.
+                        self.leaves.truncate(leaves);
+                        found.retain(|f, _| !out.contains_key(f));
+                    }
+                }
+                Ok(found)
+            }
+            Query::Any(parts) => {
+                let mut found = FileHits::new();
+                for part in parts.iter().filter(|p| !matches!(p, Query::Not(_))) {
+                    for (f, more) in self.eval(part)? {
+                        found.entry(f).or_default().extend(more);
+                    }
+                }
+                Ok(found)
+            }
+        }
+    }
+
+    fn leaf(&mut self, leaf: Leaf) -> Result<FileHits> {
+        let id = u16::try_from(self.leaves.len()).unwrap_or(u16::MAX);
+        let mut by_file = FileHits::new();
+        for (segment_ord, segment) in self.searcher.segment_readers().iter().enumerate() {
+            let file_ids = segment.fast_fields().u64("file_id")?;
+            let pages = segment.fast_fields().u64("page")?;
+            let alive = segment.alive_bitset();
+            let counts = match &leaf {
+                Leaf::Term(search) => self.index.count_in_segment(segment, search)?,
+                Leaf::Near(terms, within) => self.index.count_near(segment, terms, *within)?,
+            };
+            for (doc, count) in counts {
+                if alive.is_some_and(|a| a.is_deleted(doc)) {
+                    continue;
+                }
+                let (Some(file), Some(page)) = (file_ids.first(doc), pages.first(doc)) else {
+                    continue;
+                };
+                by_file.entry(file).or_default().push(LeafHits {
+                    page: u32::try_from(page).unwrap_or(u32::MAX),
+                    count,
+                    address: DocAddress::new(u32::try_from(segment_ord).unwrap_or(0), doc),
+                    leaf: id,
+                });
+            }
+        }
+        self.leaves.push(leaf);
+        Ok(by_file)
+    }
 }
 
 impl IndexWriterHandle {
@@ -442,38 +647,5 @@ impl IndexWriterHandle {
     pub fn commit(&mut self) -> Result<()> {
         self.writer.commit()?;
         Ok(())
-    }
-}
-
-/// Splits what the user typed into parts: each quoted phrase is one part, and every
-/// other word is a part of its own. An unclosed quote runs to the end.
-pub fn split_query(query: &str) -> Vec<String> {
-    let mut parts = Vec::new();
-    for (i, chunk) in query.split(['"', '“', '”']).enumerate() {
-        if i % 2 == 1 {
-            if !chunk.trim().is_empty() {
-                parts.push(chunk.trim().to_string());
-            }
-        } else {
-            parts.extend(chunk.split_whitespace().map(String::from));
-        }
-    }
-    parts
-}
-
-#[cfg(test)]
-mod tests {
-    use super::split_query;
-
-    #[test]
-    fn query_parts() {
-        assert_eq!(split_query("cidade deus"), ["cidade", "deus"]);
-        assert_eq!(
-            split_query("\"cidade de deus\" rio"),
-            ["cidade de deus", "rio"]
-        );
-        assert_eq!(split_query("“olhos de ressaca”"), ["olhos de ressaca"]);
-        assert_eq!(split_query("\"sem fim"), ["sem fim"]);
-        assert!(split_query("  \"\" ").is_empty());
     }
 }

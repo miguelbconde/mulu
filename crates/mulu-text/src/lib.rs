@@ -17,9 +17,11 @@
 //! never match across a punctuation mark between two such runs.
 
 mod normalize;
+pub mod query;
 mod script;
 
 pub use normalize::fold;
+pub use query::{Query, parse};
 pub use script::is_unspaced;
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -152,15 +154,10 @@ pub fn single_character_terms(text: &str) -> Vec<Term> {
         .collect()
 }
 
-/// Analyzes what the user typed, with exactly the same rules as the indexed text.
+/// Analyzes one word or phrase typed by the user, with exactly the same rules as the
+/// indexed text. A final `*` asks for every word that begins this way.
 pub fn search(query: &str) -> Search {
     let trimmed = query.trim();
-    let mut graphemes = trimmed.graphemes(true);
-    if let (Some(g), None) = (graphemes.next(), graphemes.next())
-        && g.chars().next().is_some_and(is_unspaced)
-    {
-        return Search::SingleCharacter(fold(g));
-    }
     if let Some(stem) = trimmed.strip_suffix('*') {
         let terms = index_terms(stem);
         if let [term] = terms.as_slice()
@@ -170,6 +167,19 @@ pub fn search(query: &str) -> Search {
         {
             return Search::Prefix(term.text.clone());
         }
+    }
+    search_text(trimmed)
+}
+
+/// Like [`search`], but every character is text: used inside quotes, where a `*` is
+/// not a sign.
+pub fn search_text(query: &str) -> Search {
+    let trimmed = query.trim();
+    let mut graphemes = trimmed.graphemes(true);
+    if let (Some(g), None) = (graphemes.next(), graphemes.next())
+        && g.chars().next().is_some_and(is_unspaced)
+    {
+        return Search::SingleCharacter(fold(g));
     }
     let terms = index_terms(trimmed);
     let Some(first) = terms.first().map(|t| t.position) else {

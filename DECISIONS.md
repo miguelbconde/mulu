@@ -309,6 +309,18 @@ A project can be a search scope, exported (or one subtopic) as a reading-notes d
 - **Compared with (public pages, 2026-11-21, not measured):** AnyTXT Searcher offers nothing alike in the sources consulted. Zotero has nested collections, items in several collections, saved searches (not nestable, no manual items) and reader annotations, but works on its own reference library, into which books must be brought, and does not gather lists of occurrences of a term across books. Mulu builds projects on the library as it already is, from full-text search results with pages.
 - **Release:** 0.3 in two parts: 0.3.0 reading notes (fichamento), 0.3.1 research projects.
 
+
+### D36. How the signs are read and counted, and pausing the reading (developer)
+
+Version 0.2.2 implements D33.
+
+- **Reading the search.** What is typed becomes a tree (`mulu-text::query`): spaces join parts that must all be in the file; `|` binds tighter than the space, so `machado capitu | bentinho` is `machado (capitu | bentinho)`, as in web search engines (the other order would make the most common use, two alternatives beside a fixed word, need brackets). A `-` is a sign only at the start of a word and right before a letter, so "bem-te-vi" and a lone "-" stay text. `name:` is a sign only at the start of a word. Nothing typed is an error: an unclosed quote or bracket runs to the end; a stray `)` or `|` is ignored.
+- **Near.** `"a b c"~N`: every piece between the quotes (separated by spaces) is a word or, in unspaced scripts, a run of characters; an occurrence of one counts when each of the others has an occurrence within N word positions of it, in any order, on the same page. In Chinese and Japanese a position is a character, so N counts characters there. Single characters of those scripts have no positions in the index and are left out of a near group. Distances are capped at 1,000.
+- **Counting.** Whether a file matches is decided file by file (as before: words may be on different pages). Occurrences are counted page by page for each word, phrase or near group that made the file match, and only those are shown, so the count always equals the passages; words after `-` are never counted or shown. A search made only of `-` words finds nothing, and the window says why.
+- **Names.** `name:` parts are answered from the catalog; a file found only through them is listed with the files found by name. A search that asks for text still lists, after the text results, the files whose name matches the whole search (D21).
+- **Measured** (Linux, synthetic corpus of 10,000 pages of 60 words, Zipf-distributed; warm cache): plain words and `|` and `-` under 2 ms to count; near on the two most common words (`"de a"~10`) 23 ms to count and 36 ms to the first screen; a near group of five very common words 55 ms. The real library is measured in the 0.2.2 test.
+- **Pausing.** "Pause the reading" stops after the files in hand; what was read stays searchable. The pause is saved and survives a restart: libraries are still checked for changes when Mulu opens, so new files are listed, but none is read until "Resume the reading". Adding a library or pressing ↻ resumes the reading, since both ask for it.
+
 ## Open
 
 - Apple Developer Program enrollment (needed to notarize macOS builds): cost to be presented to the maintainer before the macOS test round.

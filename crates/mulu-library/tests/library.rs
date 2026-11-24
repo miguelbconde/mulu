@@ -110,6 +110,33 @@ fn choose_index_and_search_a_library() {
         "Na nuvem.epub"
     );
 
+    // Signs (D33): `name:` looks in file names only, and can narrow a text search.
+    let answer = library.search("name:casmurro").unwrap();
+    assert!(answer.files.is_empty());
+    assert_eq!(
+        answer.by_name[0].name,
+        "ASSIS, Machado (1899) - Dom Casmurro.txt"
+    );
+    let answer = library.search("liberdade name:declaração").unwrap();
+    assert_eq!(answer.files.len(), 1);
+    assert_eq!(answer.files[0].name, "Declaração.pdf");
+    assert!(
+        library
+            .search("liberdade -name:declaração")
+            .unwrap()
+            .files
+            .iter()
+            .all(|f| f.name != "Declaração.pdf")
+    );
+    assert!(
+        library
+            .search("name:senha | name:nuvem")
+            .unwrap()
+            .by_name
+            .len()
+            == 2
+    );
+
     // The list of files that could not be read.
     let mut problems: Vec<(String, Option<Problem>)> = library
         .problems()

@@ -496,31 +496,42 @@ impl Library {
     /// (instructions, section 2).
     pub fn search_in(&self, query: &str, excluded: &[String]) -> Result<Answer> {
         let start = Instant::now();
-        let results = self.index.search(query)?;
+        let tree = mulu_text::parse(query);
         let catalog = self.catalog();
-        let mut files = Vec::with_capacity(results.files.len());
-        for file in &results.files {
-            if let Some(entry) = catalog.get(file.file_id)? {
-                files.push(found(&entry, file.count));
-            }
-        }
-        let in_text: std::collections::HashSet<u64> = files.iter().map(|f| f.id).collect();
-        let parts: Vec<mulu_text::Search> = mulu_index::split_query(query)
-            .iter()
-            .map(|p| mulu_text::search(p))
-            .filter(|s| *s != mulu_text::Search::Nothing)
-            .collect();
-        let by_name = if parts.is_empty() {
-            Vec::new()
-        } else {
-            catalog
-                .all()?
-                .into_iter()
-                .filter(|e| !in_text.contains(&e.id) && names::matches(&e.name, &parts))
-                .take(500)
-                .map(|e| found(&e, 0))
+        let entries = catalog.all()?;
+        // Parts asked for in file names (`name:`) are answered from the catalog.
+        let names = |inner: &mulu_text::Query| -> std::collections::HashSet<u64> {
+            entries
+                .iter()
+                .filter(|e| names::matches(&e.name, inner))
+                .map(|e| e.id)
                 .collect()
         };
+        let results = self.index.search_with_names(query, &names)?;
+        let mut files = Vec::with_capacity(results.files.len());
+        let mut by_name = Vec::new();
+        for file in &results.files {
+            if let Some(entry) = catalog.get(file.file_id)? {
+                // Found only through `name:`: listed with the names.
+                if file.count == 0 {
+                    by_name.push(found(&entry, 0));
+                } else {
+                    files.push(found(&entry, file.count));
+                }
+            }
+        }
+        let listed: std::collections::HashSet<u64> =
+            files.iter().chain(by_name.iter()).map(|f| f.id).collect();
+        // A search that asks for text also finds the files whose name matches.
+        if tree.wants_text() {
+            by_name.extend(
+                entries
+                    .iter()
+                    .filter(|e| !listed.contains(&e.id) && names::matches(&e.name, &tree))
+                    .map(|e| found(e, 0)),
+            );
+        }
+        by_name.truncate(500);
         drop(catalog);
         let excluded: std::collections::HashSet<&str> =
             excluded.iter().map(String::as_str).collect();
@@ -559,7 +570,20 @@ impl Library {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if last.as_ref().is_none_or(|(q, _)| q != query) {
-            *last = Some((query.to_owned(), self.index.search(query)?));
+            let catalog = self.catalog();
+            let entries = catalog.all()?;
+            drop(catalog);
+            let names = |inner: &mulu_text::Query| -> std::collections::HashSet<u64> {
+                entries
+                    .iter()
+                    .filter(|e| names::matches(&e.name, inner))
+                    .map(|e| e.id)
+                    .collect()
+            };
+            *last = Some((
+                query.to_owned(),
+                self.index.search_with_names(query, &names)?,
+            ));
         }
         let Some((_, results)) = last.as_ref() else {
             return Ok(Vec::new());
