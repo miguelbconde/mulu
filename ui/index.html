@@ -97,6 +97,7 @@
   <dialog id="survey-dialog" aria-labelledby="survey-title">
     <div class="dialog-head">
       <h2 id="survey-title" data-i18n="surveyTitle">Before reading</h2>
+      <button type="button" class="close close-x" data-i18n-title="close" title="Close">×</button>
     </div>
     <p id="survey-intro"></p>
     <h3 class="label" data-i18n="formatsTitle">Formats</h3>
@@ -105,7 +106,7 @@
     <div id="survey-places"></div>
     <p id="survey-notes" class="note small"></p>
     <p class="dialog-actions">
-      <button type="button" class="close" data-i18n="cancel">Cancel</button>
+      <button type="button" class="link close" data-i18n="cancel">Cancel</button>
       <button type="button" id="survey-start" class="primary" data-i18n="startReading">Read these books</button>
     </p>
   </dialog>
@@ -118,10 +119,11 @@
   <dialog id="remove-dialog" aria-labelledby="remove-title">
     <div class="dialog-head">
       <h2 id="remove-title" data-i18n="removeTitle">Take this library out of Mulu?</h2>
+      <button type="button" class="close close-x" data-i18n-title="close" title="Close">×</button>
     </div>
     <p id="remove-text"></p>
     <p class="dialog-actions">
-      <button type="button" class="close" data-i18n="cancel">Cancel</button>
+      <button type="button" class="link close" data-i18n="cancel">Cancel</button>
       <button type="button" id="remove-confirm" class="primary" data-i18n="removeConfirm">Take it out</button>
     </p>
   </dialog>

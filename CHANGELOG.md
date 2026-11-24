@@ -7,6 +7,7 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 ### Fixed
 
 - The top folder of each library opens and closes with an arrow, like the folders inside it, and starts closed, so a long list of folders no longer fills the panel. Reported in the 0.2.1 test.
+- The "Before reading" and "Take this library out" windows have the × close button at the top, like the other windows, and their "Cancel" button has Mulu's style instead of the system's plain grey. Reported in the 0.2.1 test.
 
 ## [0.2.1] - 2026-11-21
 

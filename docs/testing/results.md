@@ -25,4 +25,8 @@ Every version is tested from scratch: download, install, first launch. Warnings,
 - Search `homero`: 8,268 passages in 574 files, 0.09 s (as expected).
 - Libraries panel on the left: works.
 - **Problem:** the folders inside the library open and close, but the library's top folder cannot be closed, so its whole list of folders stays on screen. Fixed for the next version.
-- Steps 4 to 9 of the script (changes, second library, refusal, taking a library out, whole computer, Windows warnings): not reported.
+- Changes (step 4): a new and a removed book, then a renamed and moved one, were each reported as expected.
+- Second library (step 5): worked; the library a result comes from is visible only in the folder line under its name. Kept as is for now (a search can already be narrowed to one library by unticking the others).
+- Refusal of a folder inside a library (step 6) and taking a library out without touching its files (step 7): as expected.
+- Whole computer (step 8): counting took about 3 s and found 5,871 book files (31.1 GB). **Problem:** the "Before reading" window had "Read" and "Cancel" but no × at the top. Fixed for the next version. Places listed: not reported.
+- Windows warnings (step 9): none.
