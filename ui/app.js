@@ -109,6 +109,9 @@ const TEXTS = {
     copyReport: "Copy a reading report for the developer",
     faster: "Read faster",
     fasterNote: "Uses all of the computer's power; other programs may be slow until the reading ends.",
+    pause: "Pause the reading",
+    resume: "Resume the reading",
+    paused: (done, total) => `Reading paused: ${n(done)} of ${n(total)} books read. You can search what has been read. The pause holds even if you close Mulu.`,
     slower: "Back to background reading",
     slowerNote: "Reading at full speed. The computer may be slow until it ends.",
     copied: "Copied. Paste it in your message.",
@@ -268,6 +271,9 @@ const TEXTS = {
     copyReport: "Copiar um relatório da leitura para o desenvolvedor",
     faster: "Ler mais depressa",
     fasterNote: "Usa toda a força do computador; outros programas podem ficar lentos até a leitura terminar.",
+    pause: "Pausar a leitura",
+    resume: "Retomar a leitura",
+    paused: (done, total) => `Leitura pausada: ${n(done)} de ${n(total)} livros lidos. Já dá para pesquisar no que foi lido. A pausa continua mesmo se você fechar o Mulu.`,
     slower: "Voltar à leitura em segundo plano",
     slowerNote: "Lendo em velocidade máxima. O computador pode ficar lento até terminar.",
     copied: "Copiado. Cole na sua mensagem.",
@@ -427,6 +433,9 @@ const TEXTS = {
     copyReport: "Copiar un informe de la lectura para el desarrollador",
     faster: "Leer más rápido",
     fasterNote: "Usa toda la potencia de la computadora; otros programas pueden ir lentos hasta que termine la lectura.",
+    pause: "Pausar la lectura",
+    resume: "Reanudar la lectura",
+    paused: (done, total) => `Lectura en pausa: ${n(done)} de ${n(total)} libros leídos. Ya puede buscar en lo que se ha leído. La pausa sigue aunque cierre Mulu.`,
     slower: "Volver a la lectura en segundo plano",
     slowerNote: "Leyendo a máxima velocidad. La computadora puede ir lenta hasta que termine.",
     copied: "Copiado. Péguelo en su mensaje.",
@@ -569,10 +578,24 @@ async function refreshStatus() {
 
   const reading = status.reading;
   const files = status.bases.reduce((sum, b) => sum + b.files, 0);
+  const done = status.bases.reduce((sum, b) => sum + b.done, 0);
   status.problems = status.bases.reduce((sum, b) => sum + b.problems, 0);
-  $("indexing").hidden = !reading;
-  $("ready-text").hidden = Boolean(reading);
-  if (reading) {
+  // Paused with books still to read (0.2.2): the progress stays on screen.
+  const paused = status.paused && !reading && done < files;
+  $("indexing").hidden = !reading && !paused;
+  $("ready-text").hidden = Boolean(reading) || paused;
+  $("pause-button").textContent = paused ? T.resume : T.pause;
+  $("pause-button").dataset.paused = String(paused);
+  // Paused, but the books in hand are still being read: nothing more to click.
+  $("pause-button").disabled = status.paused && Boolean(reading);
+  $("pace-button").parentElement.hidden = paused;
+  if (paused) {
+    $("indexing-text").textContent = T.paused(done, files);
+    $("indexing-bar").max = files;
+    $("indexing-bar").value = done;
+    clearInterval(polling);
+    polling = null;
+  } else if (reading) {
     if (reading.total === 0) {
       $("indexing-text").textContent = T.finding;
       $("indexing-bar").removeAttribute("value");
@@ -596,6 +619,20 @@ async function refreshStatus() {
 
 $("choose").addEventListener("click", () => surveyFolder($("welcome-error")));
 $("choose-computer").addEventListener("click", () => surveyComputer($("welcome-error")));
+
+// Pause and resume the reading, even across restarts (0.2.2).
+$("pause-button").addEventListener("click", async () => {
+  const paused = $("pause-button").dataset.paused !== "true";
+  $("pause-button").disabled = true;
+  try {
+    await call("set_paused", { paused });
+  } finally {
+    $("pause-button").disabled = false;
+  }
+  await refreshStatus();
+  // The reading stops after the books in hand: watch until it has.
+  if (!polling) polling = setInterval(refreshStatus, 1000);
+});
 
 // Background reading (the default) or full speed (D29).
 $("pace-button").addEventListener("click", async () => {

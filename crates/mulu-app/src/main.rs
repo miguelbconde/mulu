@@ -44,6 +44,9 @@ struct Config {
     /// `libraries`.
     #[serde(default, skip_serializing)]
     library: Option<PathBuf>,
+    /// The reading was paused by the user, and stays paused after a restart (0.2.2).
+    #[serde(default)]
+    paused: bool,
 }
 
 impl Config {
@@ -88,6 +91,9 @@ struct App {
     busy: Arc<AtomicBool>,
     /// What the latest check of each library found (D16), by library folder.
     changes: Arc<Mutex<HashMap<String, Changes>>>,
+    /// The user paused the reading: libraries are still checked for changes, but no
+    /// file is read until the reading is resumed (0.2.2).
+    paused: Arc<AtomicBool>,
 }
 
 /// How many reading processes to use: in the background, one for every two
@@ -110,8 +116,9 @@ struct BaseStatus {
     root: String,
     /// The folder is there (an external disk may be unplugged).
     present: bool,
-    /// Files in the library.
+    /// Files in the library, and those already read (with or without text).
     files: u64,
+    done: u64,
     problems: usize,
     /// When the library was last checked for changes, in seconds since 1970.
     checked: Option<i64>,
@@ -125,6 +132,7 @@ struct Status {
     reading: Option<Reading>,
     last_run: Option<u64>,
     fast: bool,
+    paused: bool,
 }
 
 type CommandResult<T> = Result<T, String>;
@@ -169,6 +177,7 @@ impl App {
                 .map(|l| l.root().to_path_buf())
                 .collect(),
             library: None,
+            paused: self.paused.load(Ordering::SeqCst),
         };
         std::fs::create_dir_all(&self.data)?;
         let text = serde_json::to_string_pretty(&config).map_err(std::io::Error::other)?;
@@ -228,6 +237,7 @@ impl App {
         let fast_used = Arc::clone(&self.fast_used);
         let busy = Arc::clone(&self.busy);
         let changes = Arc::clone(&self.changes);
+        let paused = Arc::clone(&self.paused);
         fast_used.store(self.fast.load(Ordering::SeqCst), Ordering::SeqCst);
         let settings = mulu_reader::Settings {
             pdfium: self.pdfium.clone(),
@@ -282,6 +292,10 @@ impl App {
                     continue;
                 };
                 let mut read_any = false;
+                // Paused: the library was checked, and its new files wait.
+                if paused.load(Ordering::SeqCst) {
+                    continue;
+                }
                 // The pace can change while the library is read (D29): the reading
                 // stops after the files in hand and starts again with the new pace.
                 // A library removed from the list stops being read.
@@ -304,7 +318,9 @@ impl App {
                             base: base.clone(),
                             progress: p.clone(),
                         }));
-                        generation.load(Ordering::SeqCst) == run && still_listed(&library)
+                        generation.load(Ordering::SeqCst) == run
+                            && still_listed(&library)
+                            && !paused.load(Ordering::SeqCst)
                     });
                     if generation.load(Ordering::SeqCst) == run || !still_listed(&library) {
                         break;
@@ -335,8 +351,10 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
     let mut bases = Vec::new();
     for library in app.bases() {
         let root = root_text(&library);
+        let progress = library.progress().map_err(text_error)?;
         bases.push(BaseStatus {
-            files: library.progress().map_err(text_error)?.total,
+            files: progress.total,
+            done: progress.done,
             problems: library.problems().map_err(text_error)?.len(),
             checked: library.checked().map_err(text_error)?,
             changes: changes.get(&root).cloned(),
@@ -349,6 +367,7 @@ fn status(app: State<'_, App>) -> CommandResult<Status> {
         reading: app.reading.lock().ok().and_then(|r| r.clone()),
         last_run: app.last_run.lock().ok().and_then(|t| *t),
         fast: app.fast.load(Ordering::SeqCst),
+        paused: app.paused.load(Ordering::SeqCst),
     })
 }
 
@@ -525,6 +544,8 @@ fn create_libraries(app: State<'_, App>, libraries: Vec<NewLibrary>) -> CommandR
         if let Ok(mut bases) = app.bases.lock() {
             bases.push(Arc::clone(&library));
         }
+        // Adding a library asks for it to be read: a paused reading resumes.
+        app.paused.store(false, Ordering::SeqCst);
         app.run(vec![library]);
     }
     app.save_config().map_err(text_error)
@@ -626,7 +647,29 @@ fn refresh(app: State<'_, App>, base: Option<String>) -> CommandResult<()> {
         Some(base) => vec![app.base(&base)?],
         None => app.bases(),
     };
+    // The refresh button asks for the changes to be read: a paused reading resumes.
+    if app.paused.swap(false, Ordering::SeqCst) {
+        app.save_config().map_err(text_error)?;
+    }
     app.run(libraries);
+    Ok(())
+}
+
+/// Pauses the reading (`true`) or resumes it (`false`). The reading stops after the
+/// files in hand; read files stay in the index, and the rest are read on resuming,
+/// even after Mulu is closed and opened again (0.2.2).
+#[tauri::command]
+fn set_paused(app: State<'_, App>, paused: bool) -> CommandResult<()> {
+    app.paused.store(paused, Ordering::SeqCst);
+    app.save_config().map_err(text_error)?;
+    if !paused {
+        let present: Vec<Arc<Library>> = app
+            .bases()
+            .into_iter()
+            .filter(|l| l.root().is_dir())
+            .collect();
+        app.run(present);
+    }
     Ok(())
 }
 
@@ -797,6 +840,7 @@ fn main() {
             // plugged in) is kept in the list but not checked: checking it would take
             // all its files out of the index.
             let config = state.load_config();
+            state.paused.store(config.paused, Ordering::SeqCst);
             for root in config.roots() {
                 if let Ok(library) = Library::open(&root, &state.store(&root))
                     && let Ok(mut bases) = state.bases.lock()
@@ -830,6 +874,7 @@ fn main() {
             problems,
             report,
             set_fast,
+            set_paused,
             open_file
         ])
         .run(tauri::generate_context!())
