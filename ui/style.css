@@ -483,10 +483,10 @@ footer {
   cursor: pointer;
 }
 
-.base-path { margin: 2px 0 8px 26px; font-size: 12px; }
+.base-path { margin: 2px 0 8px 52px; font-size: 12px; }
 
 .bases .note.small {
-  margin: 0 0 4px 26px;
+  margin: 0 0 4px 52px;
   font-size: 12px;
 }
 
@@ -528,7 +528,10 @@ footer {
   padding: 0;
 }
 
-.tree { margin-top: 8px; }
+.tree { margin-top: 8px; padding-left: 26px; }
+
+/* A library without folders keeps its arrow's place, so the boxes stay in line. */
+.base-flat .base-head::before { content: ""; width: 18px; flex: none; }
 .tree ul { padding-left: 18px; }
 
 .tree-row {
@@ -579,7 +582,7 @@ footer {
 .bases .error { color: var(--stamp); font-style: normal; margin-left: 0 !important; }
 .bases .scope-note { margin: 0 0 10px !important; }
 .base-missing { color: var(--stamp); }
-.remove-library { font-size: 12px; margin-left: 26px; }
+.remove-library { font-size: 12px; margin-left: 52px; }
 #remove-text { line-height: 1.5; }
 
 /* Survey before the first reading. */

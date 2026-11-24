@@ -4,6 +4,10 @@ All notable changes to Mulu are recorded here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Fixed
+
+- The top folder of each library opens and closes with an arrow, like the folders inside it, and starts closed, so a long list of folders no longer fills the panel. Reported in the 0.2.1 test.
+
 ## [0.2.1] - 2026-11-21
 
 Test script: `docs/testing/v0.2.1.md`.
