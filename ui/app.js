@@ -583,7 +583,23 @@ function baseBlock(root) {
     await call("refresh", { base: root });
     await refreshStatus();
   });
-  head.append(box, label, refresh);
+  // The top folder opens and closes like the folders inside it; it starts closed, so
+  // a long list of folders never fills the panel unasked.
+  const toggle = el("button", "▸", "tree-toggle base-toggle");
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", T.showFolders(baseName(root)));
+  toggle.hidden = true; // until the folders are known
+  toggle.addEventListener("click", () => {
+    const scope = scopeOf(root);
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "▾" : "▸";
+    toggle.setAttribute("aria-label", open ? T.hideFolders(baseName(root)) : T.showFolders(baseName(root)));
+    if (open) scope.expanded.add(""); else scope.expanded.delete("");
+    block.querySelector(".tree").hidden = !open;
+  });
+  head.append(toggle, box, label, refresh);
   const remove = el("button", T.removeLibrary, "link small remove-library");
   remove.type = "button";
   remove.addEventListener("click", () => askRemove(root));
@@ -595,6 +611,7 @@ function baseBlock(root) {
     el("ul", null, "tree"),
     remove,
   );
+  block.querySelector(".tree").hidden = true;
   block.querySelector(".checked").setAttribute("aria-live", "polite");
   return block;
 }
@@ -638,7 +655,13 @@ async function loadFolders(root) {
   }
   scope.previous = known;
   const tree = scope.block.querySelector(".tree");
-  tree.replaceChildren(...childrenOf(scope, "").map((f) => folderItem(root, f)));
+  const top = childrenOf(scope, "");
+  tree.replaceChildren(...top.map((f) => folderItem(root, f)));
+  // Without folders there is nothing to open: the arrow gives way to a blank space.
+  const toggle = scope.block.querySelector(".base-toggle");
+  toggle.hidden = top.length === 0;
+  scope.block.classList.toggle("base-flat", top.length === 0);
+  tree.hidden = !scope.expanded.has("");
   updateChecks(root);
 }
 
