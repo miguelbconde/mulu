@@ -18,32 +18,65 @@ pub fn occurrences(text: &str, search: &Search) -> Vec<(usize, usize)> {
             .filter(|t| t.text.starts_with(prefix.as_str()))
             .map(|t| (t.start, t.end))
             .collect(),
-        Search::Phrase(phrase) => {
-            let terms = index_terms(text);
-            let by_position: HashMap<u32, usize> = terms
+        Search::Phrase(phrase) => located(&index_terms(text), phrase)
+            .into_iter()
+            .map(|(_, start, end)| (start, end))
+            .collect(),
+    }
+}
+
+/// Word positions and byte ranges of every occurrence of a word or phrase.
+fn located(terms: &[mulu_text::Term], phrase: &[(u32, String)]) -> Vec<(u32, usize, usize)> {
+    let by_position: HashMap<u32, usize> = terms
+        .iter()
+        .enumerate()
+        .map(|(i, t)| (t.position, i))
+        .collect();
+    let Some((_, first)) = phrase.first() else {
+        return Vec::new();
+    };
+    let last_offset = phrase.last().map_or(0, |(offset, _)| *offset);
+    terms
+        .iter()
+        .filter(|anchor| &anchor.text == first)
+        .filter_map(|anchor| {
+            let all_present = phrase.iter().all(|(offset, text)| {
+                by_position
+                    .get(&(anchor.position + offset))
+                    .is_some_and(|&i| &terms[i].text == text)
+            });
+            let end = by_position.get(&(anchor.position + last_offset))?;
+            all_present.then(|| (anchor.position, anchor.start, terms[*end].end))
+        })
+        .collect()
+}
+
+/// Byte ranges of the occurrences of terms near each other (`"a b"~N`): an occurrence
+/// counts when every other term has one within `within` words of it, the same rule
+/// the index uses to count them.
+pub fn near_occurrences(text: &str, near: &[Search], within: u32) -> Vec<(usize, usize)> {
+    let terms = index_terms(text);
+    let found: Vec<Vec<(u32, usize, usize)>> = near
+        .iter()
+        .map(|s| match s {
+            Search::Phrase(phrase) => located(&terms, phrase),
+            _ => Vec::new(),
+        })
+        .collect();
+    let mut out = Vec::new();
+    for (i, list) in found.iter().enumerate() {
+        for &(p, start, end) in list {
+            let close = found
                 .iter()
                 .enumerate()
-                .map(|(i, t)| (t.position, i))
-                .collect();
-            let Some((_, first)) = phrase.first() else {
-                return Vec::new();
-            };
-            let last_offset = phrase.last().map_or(0, |(offset, _)| *offset);
-            terms
-                .iter()
-                .filter(|anchor| &anchor.text == first)
-                .filter_map(|anchor| {
-                    let all_present = phrase.iter().all(|(offset, text)| {
-                        by_position
-                            .get(&(anchor.position + offset))
-                            .is_some_and(|&i| &terms[i].text == text)
-                    });
-                    let end = by_position.get(&(anchor.position + last_offset))?;
-                    all_present.then(|| (anchor.start, terms[*end].end))
-                })
-                .collect()
+                .all(|(j, other)| j == i || other.iter().any(|&(q, _, _)| q.abs_diff(p) <= within));
+            if close {
+                out.push((start, end));
+            }
         }
     }
+    out.sort_unstable();
+    out
 }
 
 /// A passage around one occurrence, ready to display with the match highlighted.

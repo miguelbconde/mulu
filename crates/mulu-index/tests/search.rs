@@ -127,6 +127,13 @@ fn counts_from_the_index_match_the_passages() {
         "dissimul*",
         "olh*",
         "capi* ressaca",
+        "capitu | janeiro",
+        "olhos -cigana",
+        "\"capitu olhos\"~3",
+        "\"capitu ressaca\"~5",
+        "(capitu | janeiro) olhos",
+        "olhos (ressaca | todos)",
+        "\"olhos de\" -\"de cigana\"",
     ] {
         let results = index.search(query).unwrap();
         for file in &results.files {
@@ -199,4 +206,52 @@ fn words_by_their_beginning() {
     let hits = first_file_hits(&index, "dissimul*");
     assert_eq!(hits[0].passage.matched, "dissimulada");
     assert!(summary(&index, "zzz*").is_empty());
+}
+
+// Signs of decision D33.
+
+fn files(index: &LibraryIndex, query: &str) -> Vec<u64> {
+    let mut f: Vec<u64> = summary(index, query).iter().map(|(f, _)| *f).collect();
+    f.sort_unstable();
+    f
+}
+
+#[test]
+fn either_word() {
+    let index = library();
+    assert_eq!(files(&index, "capitu | janeiro"), [1, 2, 4]);
+    // Occurrences of both words are counted and shown.
+    assert_eq!(summary(&index, "capitu | ressaca")[0], (1, 4));
+    assert_eq!(files(&index, "(capitu | janeiro) olhos"), [1, 2]);
+}
+
+#[test]
+fn without_a_word() {
+    let index = library();
+    assert_eq!(files(&index, "olhos -cigana"), [2]);
+    assert_eq!(files(&index, "olhos -\"olhos de cigana\""), [2]);
+    // A word excluded is never counted or shown.
+    assert_eq!(summary(&index, "olhos -inexistente"), [(1, 3), (2, 1)]);
+    // Only what is absent: nothing to show.
+    assert!(summary(&index, "-capitu").is_empty());
+    // Capital words are words: "NÃO" is searched, not used as an operator
+    // ("não" is on page 2 of file 1), and so is "OU".
+    assert_eq!(files(&index, "capitu NÃO ressaca"), [1]);
+    assert!(summary(&index, "capitu OU janeiro").is_empty());
+}
+
+#[test]
+fn words_near_each_other() {
+    let index = library();
+    // Page 1 of file 1: "Capitu tinha olhos": 2 words apart.
+    assert_eq!(files(&index, "\"capitu olhos\"~2"), [1]);
+    assert!(summary(&index, "\"capitu cigana\"~3").is_empty());
+    // In file 4 the two words are on different pages: never near.
+    assert_eq!(files(&index, "capitu ressaca"), [1, 4]);
+    assert_eq!(files(&index, "\"capitu ressaca\"~50"), [1]);
+    // Any order.
+    assert_eq!(files(&index, "\"olhos capitu\"~2"), [1]);
+    let hits = first_file_hits(&index, "\"capitu tinha\"~1");
+    let matched: Vec<&str> = hits.iter().map(|h| h.passage.matched.as_str()).collect();
+    assert_eq!(matched, ["Capitu", "tinha"]);
 }
