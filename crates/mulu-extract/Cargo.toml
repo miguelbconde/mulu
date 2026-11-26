@@ -17,7 +17,7 @@ html5ever = "=0.40.1"
 mulu-text = { path = "../mulu-text" }
 # PDF reader: Google's PDFium, loaded from its library file (D28). Bindings only;
 # the library is fetched by scripts/fetch-pdfium.sh, with a pinned checksum.
-pdfium-render = { version = "=0.9.5", default-features = false, features = ["pdfium_8125", "thread_safe"] }
+pdfium-render = { version = "=0.9.6", default-features = false, features = ["pdfium_8125", "thread_safe"] }
 quick-xml = "=0.42.0"
 serde = { version = "=1.0.229", features = ["derive"] }
 unicode-normalization.workspace = true
